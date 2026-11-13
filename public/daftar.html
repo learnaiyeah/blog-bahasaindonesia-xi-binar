@@ -196,8 +196,8 @@
       </div>
     </div>
 
-    <!-- Tabel Daftar Naskah KTI -->
-    <div class="table-responsive">
+    <!-- Tabel Daftar Naskah KTI (Tampilan Layar Lebar / Laptop Landscape) -->
+    <div class="table-responsive desktop-only-view">
       <table class="data-table" id="tugas-table">
         <thead>
           <tr id="tugas-table-header-row">
@@ -214,6 +214,11 @@
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Daftar Kartu Naskah KTI (Tampilan Layar Sentuh / Mobile Portrait) -->
+    <div class="mobile-cards-container mobile-only-view" id="mobile-cards-container">
+      <div class="card empty-state" style="margin-bottom: 0;">Memuat data naskah karya ilmiah...</div>
     </div>
   </main>
 
@@ -380,6 +385,7 @@
     const filterStatus = document.getElementById('filter-status');
     const searchNama = document.getElementById('search-nama');
     const tableBody = document.getElementById('tugas-table-body');
+    const mobileCardsContainer = document.getElementById('mobile-cards-container');
 
     // Modal Elemen Pratinjau
     const previewModal = document.getElementById('preview-modal');
@@ -513,6 +519,15 @@
         td.textContent = 'Terjadi kendala saat memuat data naskah. Silakan muat ulang halaman.';
         row.appendChild(td);
         tableBody.appendChild(row);
+
+        if (mobileCardsContainer) {
+          mobileCardsContainer.innerHTML = '';
+          const errCard = document.createElement('div');
+          errCard.className = 'card empty-state';
+          errCard.style.marginBottom = '0';
+          errCard.textContent = 'Terjadi kendala saat memuat data naskah. Silakan muat ulang halaman.';
+          mobileCardsContainer.appendChild(errCard);
+        }
       }
     }
 
@@ -588,6 +603,9 @@
       statPerluUlang.textContent = perluUlang;
 
       tableBody.innerHTML = '';
+      if (mobileCardsContainer) {
+        mobileCardsContainer.innerHTML = '';
+      }
 
       if (filtered.length === 0) {
         const row = document.createElement('tr');
@@ -597,6 +615,14 @@
         td.textContent = 'Belum ada naskah karya ilmiah yang sesuai dengan filter atau pencarian.';
         row.appendChild(td);
         tableBody.appendChild(row);
+
+        if (mobileCardsContainer) {
+          const emptyCard = document.createElement('div');
+          emptyCard.className = 'card empty-state';
+          emptyCard.style.marginBottom = '0';
+          emptyCard.textContent = 'Belum ada naskah karya ilmiah yang sesuai dengan filter atau pencarian.';
+          mobileCardsContainer.appendChild(emptyCard);
+        }
         return;
       }
 
@@ -697,6 +723,114 @@
         });
 
         tableBody.appendChild(tr);
+
+        // ----------------------------------------------------
+        // Render Tampilan Mobile Card (Khusus Layar Sentuh / Smartphone Portrait)
+        // ----------------------------------------------------
+        if (mobileCardsContainer) {
+          const card = document.createElement('div');
+          card.className = 'mobile-tugas-card';
+          card.setAttribute('role', 'article');
+          card.setAttribute('aria-label', `Naskah KTI ${item.nama}`);
+
+          // 1. Header Kartu: Nama Siswa + Bagian / Bab Badge
+          const headerDiv = document.createElement('div');
+          headerDiv.className = 'mtc-header';
+
+          const namaDiv = createSafeElement('div', item.nama, 'mtc-nama');
+          const babBadge = createSafeElement('span', item.bab, 'mtc-bab-badge');
+          headerDiv.appendChild(namaDiv);
+          headerDiv.appendChild(babBadge);
+          card.appendChild(headerDiv);
+
+          // 2. Baris Meta: Kelas & Versi
+          const metaDiv = document.createElement('div');
+          metaDiv.className = 'mtc-meta';
+
+          const kelasPill = createSafeElement('span', item.kelas, 'mtc-meta-kelas');
+          metaDiv.appendChild(kelasPill);
+
+          if (totalVersi > 1) {
+            const verPill = createSafeElement(
+              'span',
+              `Versi ke-${item.versi || totalVersi} (Revisi)`,
+              'mtc-meta-versi'
+            );
+            metaDiv.appendChild(verPill);
+          }
+          card.appendChild(metaDiv);
+
+          // 3. Waktu Pengiriman (Detail Transparan)
+          const timeDiv = document.createElement('div');
+          timeDiv.className = 'mtc-time-box';
+
+          const clockSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          clockSvg.setAttribute('width', '14');
+          clockSvg.setAttribute('height', '14');
+          clockSvg.setAttribute('viewBox', '0 0 24 24');
+          clockSvg.setAttribute('fill', 'none');
+          clockSvg.setAttribute('stroke', 'currentColor');
+          clockSvg.setAttribute('stroke-width', '2');
+          const clockCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          clockCircle.setAttribute('cx', '12');
+          clockCircle.setAttribute('cy', '12');
+          clockCircle.setAttribute('r', '10');
+          const clockPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+          clockPoly.setAttribute('points', '12 6 12 12 16 14');
+          clockSvg.appendChild(clockCircle);
+          clockSvg.appendChild(clockPoly);
+          timeDiv.appendChild(clockSvg);
+
+          const timeText = relWaktu
+            ? `${formatTanggal(item.dikirimPada)} (${relWaktu})`
+            : formatTanggal(item.dikirimPada);
+          timeDiv.appendChild(createSafeElement('span', timeText));
+          card.appendChild(timeDiv);
+
+          // 4. Status Penilaian
+          const statusDiv = document.createElement('div');
+          statusDiv.className = 'mtc-status-row';
+          const cardBadge = document.createElement('span');
+          if (item.statusNilai === 'sudah') {
+            cardBadge.className = 'badge badge-success';
+            cardBadge.textContent = `Sudah dinilai: ${item.nilai}`;
+          } else if (item.statusNilai === 'perlu_ulang') {
+            cardBadge.className = 'badge badge-perlu-ulang';
+            cardBadge.textContent = `Perlu dinilai ulang (Nilai lama: ${item.nilaiLama})`;
+          } else {
+            cardBadge.className = 'badge badge-warning';
+            cardBadge.textContent = 'Belum dinilai';
+          }
+          statusDiv.appendChild(cardBadge);
+          card.appendChild(statusDiv);
+
+          // 5. Tombol Aksi Sentuh (Ergonomis untuk Mobile)
+          const actionsDiv = document.createElement('div');
+          actionsDiv.className = 'mtc-actions-row';
+
+          const btnOpenCard = document.createElement('button');
+          btnOpenCard.type = 'button';
+          btnOpenCard.className = 'btn btn-primary mtc-btn-open';
+          btnOpenCard.textContent = (currentRole === 'guru') ? 'Periksa & Nilai' : 'Buka Naskah';
+          btnOpenCard.addEventListener('click', () => openPreviewModal(item));
+          actionsDiv.appendChild(btnOpenCard);
+
+          if (currentRole === 'guru') {
+            const btnDelCard = document.createElement('button');
+            btnDelCard.type = 'button';
+            btnDelCard.className = 'btn btn-danger-outline mtc-btn-delete';
+            btnDelCard.textContent = 'Hapus';
+            btnDelCard.title = `Hapus data siswa ${item.nama}`;
+            btnDelCard.addEventListener('click', (e) => {
+              e.stopPropagation();
+              handleDeleteStudent(item);
+            });
+            actionsDiv.appendChild(btnDelCard);
+          }
+
+          card.appendChild(actionsDiv);
+          mobileCardsContainer.appendChild(card);
+        }
       });
     }
 

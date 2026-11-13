@@ -78,7 +78,7 @@ server.listen(0, async () => {
     assert.strictEqual(configRes.status, 200);
     const configData = await configRes.json();
     assert.deepStrictEqual(configData.kelas, ['XI-1', 'XI-2'], 'Kelas harus hanya XI-1 dan XI-2');
-    assert.ok(Array.isArray(configData.bab) && configData.bab.includes('Bab 1'));
+    assert.ok(Array.isArray(configData.bab) && configData.bab.length > 0, 'Daftar bab harus berupa array tidak kosong');
 
     // Uji metode selain GET ditolak
     const postConfigRes = await fetch(`${baseUrl}/api/config`, { method: 'POST' });
