@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pengumpulan KTI Siswa — SMK Bina Rahayu</title>
+  <link rel="icon" type="image/png" href="/assets/logo.png">
+  <link rel="apple-touch-icon" href="/assets/logo.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <a href="/" class="brand-title">
+        <img src="/assets/logo.png" alt="Logo SMK Bina Rahayu" class="brand-logo" width="38" height="38">
+        <div class="brand-text">
+          <span class="brand-school">SMK Bina Rahayu</span>
+          <span class="brand-sub">KTI Bahasa Indonesia</span>
+        </div>
+      </a>
+      <div class="header-meta">
+        <a href="/" class="btn btn-secondary" style="min-height: 36px; padding: 0.35rem 0.75rem; font-size: 0.8125rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          <span>Beranda</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container container-narrow" style="padding-top: 2rem; padding-bottom: 3.5rem;">
+    <!-- Kartu Formulir Pengumpulan Tugas -->
+    <div class="card" id="form-card">
+      <div class="form-header" style="margin-bottom: 1.25rem;">
+        <span class="subject-kicker">SMK Bina Rahayu &bull; Bu Ulfa</span>
+        <h1 style="font-size: 1.45rem; margin-top: 0.25rem; margin-bottom: 0.35rem;">Pengumpulan Karya Tulis Ilmiah</h1>
+        <p class="text-muted" style="font-size: 0.9rem;">
+          Lengkapi identitas diri dan unggah draf naskah ilmiah Anda sesuai dengan bab yang sedang ditugaskan.
+        </p>
+      </div>
+
+      <!-- Petunjuk Singkat Pengiriman Ulang (Revisi) Tanpa Emoji -->
+      <div class="notice-revision">
+        <strong>Ketentuan Pengiriman Ulang (Revisi):</strong>
+        <p style="margin-top: 0.25rem; margin-bottom: 0;">
+          Jika Anda hendak memperbaiki naskah, kirimkan kembali dengan nama, kelas, dan bab yang sama persis. Versi terbaru akan otomatis menjadi rujukan telaah dan penilaian Ibu Ulfa.
+        </p>
+      </div>
+
+      <div id="error-alert" class="alert alert-danger" role="alert"></div>
+
+      <form id="submission-form" novalidate>
+        <!-- Nama Lengkap Siswa -->
+        <div class="form-group">
+          <label for="input-nama">Nama Lengkap Siswa</label>
+          <input
+            type="text"
+            id="input-nama"
+            name="nama"
+            class="form-control"
+            placeholder="Tuliskan nama lengkap sesuai daftar presensi"
+            maxlength="60"
+            required
+            autocomplete="name"
+          >
+          <div class="help-text">Maksimal 60 karakter.</div>
+        </div>
+
+        <!-- Pilihan Kelas -->
+        <div class="form-group">
+          <label for="select-kelas">Kelas</label>
+          <select id="select-kelas" name="kelas" class="form-control" required>
+            <option value="">Memuat daftar kelas...</option>
+          </select>
+        </div>
+
+        <!-- Pilihan Bab Pembelajaran -->
+        <div class="form-group">
+          <label for="select-bab">Bagian / Bab Karya Tulis Ilmiah</label>
+          <select id="select-bab" name="bab" class="form-control" required>
+            <option value="">Memuat daftar bab...</option>
+          </select>
+        </div>
+
+        <!-- Unggah Berkas Naskah KTI -->
+        <div class="form-group">
+          <label for="input-file">Berkas Naskah KTI (PDF, DOC, DOCX)</label>
+          <div class="file-upload-box" id="drop-zone">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary); margin: 0 auto 0.5rem;" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <div style="font-weight: 600; font-size: 0.9375rem;">Pilih berkas naskah dari perangkat</div>
+            <div class="help-text" style="margin-top: 0.2rem;">Mendukung format PDF, DOC, atau DOCX (maksimal 10 MB)</div>
+            <input
+              type="file"
+              id="input-file"
+              name="file"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              required
+            >
+          </div>
+          
+          <div id="file-info-container" style="display: none; margin-top: 0.75rem;">
+            <div class="file-info-pill">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              <span id="file-name-display" style="font-weight: 500;"></span>
+              <span id="file-size-display" class="text-muted" style="font-size: 0.8125rem;"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kolom Opsional: Catatan untuk Guru -->
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.375rem;">
+            <label for="input-catatan-siswa" style="margin-bottom: 0;">Catatan untuk Ibu Ulfa (Opsional)</label>
+            <span id="char-counter-siswa" class="text-muted" style="font-size: 0.75rem;">0 / 300</span>
+          </div>
+          <textarea
+            id="input-catatan-siswa"
+            name="catatanSiswa"
+            class="form-control"
+            maxlength="300"
+            rows="3"
+            placeholder="Tuliskan fokus perbaikan, kendala penulisan, atau pesan pengantar naskah jika ada..."
+          ></textarea>
+          <div class="help-text">Maksimal 300 karakter.</div>
+        </div>
+
+        <!-- Progress Bar Unggah -->
+        <div class="progress-container" id="progress-container">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progress-bar-fill"></div>
+          </div>
+          <div class="progress-text" id="progress-text">Mengunggah naskah... 0%</div>
+        </div>
+
+        <!-- Tombol Kirim -->
+        <button type="submit" id="btn-submit" class="btn btn-primary btn-block" style="margin-top: 1.5rem;">
+          Kirim Naskah KTI
+        </button>
+      </form>
+    </div>
+
+    <!-- Tampilan Sukses Pengiriman -->
+    <div class="card text-center" id="success-card" style="display: none;">
+      <div class="success-icon-badge">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+
+      <!-- Heading sukses dinamis jika revisi -->
+      <h2 id="success-heading" style="color: var(--success-text); margin-bottom: 0.35rem; font-size: 1.35rem;">Naskah Berhasil Terkirim</h2>
+      <p id="success-subtext" class="text-muted" style="margin-bottom: 1.35rem; font-size: 0.9rem;">
+        Draf karya tulis ilmiah Anda telah tersimpan dan siap ditelaah oleh Ibu Ulfa.
+      </p>
+
+      <div class="success-details-card">
+        <div class="detail-row">
+          <span class="detail-label">Nama Siswa</span>
+          <!-- textContent digunakan untuk keamanan XSS -->
+          <strong id="success-nama" style="font-size: 1rem; color: var(--text-main);"></strong>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Kelas &amp; Bab KTI</span>
+          <span id="success-kelas-bab" style="font-weight: 500;"></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Versi Naskah</span>
+          <span id="success-versi" style="font-weight: 600; color: var(--primary);"></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Waktu Pengiriman</span>
+          <span id="success-waktu" style="font-weight: 500;"></span>
+        </div>
+        <div id="success-catatan-container" class="detail-row" style="display: none; border-bottom: none;">
+          <span class="detail-label">Catatan untuk Guru</span>
+          <span id="success-catatan" style="font-style: italic; color: var(--text-main);"></span>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+        <button type="button" id="btn-kirim-lagi" class="btn btn-secondary btn-block">
+          Kirim Naskah Lain
+        </button>
+        <a href="/" class="btn btn-outline btn-block">
+          Kembali ke Beranda
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <div class="footer-school-brand">
+        <img src="/assets/logo.png" alt="Logo SMK Bina Rahayu" class="footer-school-logo" width="24" height="24">
+        <span>SMK Bina Rahayu</span>
+      </div>
+      <p>&copy; 2026 SMK Bina Rahayu &bull; Blog Pembelajaran Bahasa Indonesia &bull; Pengampu: Ibu Ulfa &bull; Kelas XI</p>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { formatTanggal, formatWaktuRelatif, formatUkuranFile, uploadToBlobDirect } from '/app.js';
+
+    const form = document.getElementById('submission-form');
+    const formCard = document.getElementById('form-card');
+    const successCard = document.getElementById('success-card');
+    const errorAlert = document.getElementById('error-alert');
+    const selectKelas = document.getElementById('select-kelas');
+    const selectBab = document.getElementById('select-bab');
+    const inputFile = document.getElementById('input-file');
+    const dropZone = document.getElementById('drop-zone');
+    const fileInfoContainer = document.getElementById('file-info-container');
+    const fileNameDisplay = document.getElementById('file-name-display');
+    const fileSizeDisplay = document.getElementById('file-size-display');
+    const inputCatatanSiswa = document.getElementById('input-catatan-siswa');
+    const charCounterSiswa = document.getElementById('char-counter-siswa');
+    const btnSubmit = document.getElementById('btn-submit');
+    const progressContainer = document.getElementById('progress-container');
+    const progressBarFill = document.getElementById('progress-bar-fill');
+    const progressText = document.getElementById('progress-text');
+    const btnKirimLagi = document.getElementById('btn-kirim-lagi');
+
+    const successHeading = document.getElementById('success-heading');
+    const successNama = document.getElementById('success-nama');
+    const successKelasBab = document.getElementById('success-kelas-bab');
+    const successVersi = document.getElementById('success-versi');
+    const successWaktu = document.getElementById('success-waktu');
+    const successCatatanContainer = document.getElementById('success-catatan-container');
+    const successCatatan = document.getElementById('success-catatan');
+
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
+    function showError(msg) {
+      errorAlert.textContent = msg;
+      errorAlert.style.display = 'block';
+      errorAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function hideError() {
+      errorAlert.textContent = '';
+      errorAlert.style.display = 'none';
+    }
+
+    // Penghitung karakter catatan siswa
+    inputCatatanSiswa.addEventListener('input', () => {
+      const len = inputCatatanSiswa.value.length;
+      charCounterSiswa.textContent = `${len} / 300`;
+      if (len > 300) {
+        charCounterSiswa.style.color = 'var(--danger-accent)';
+      } else {
+        charCounterSiswa.style.color = 'var(--text-muted)';
+      }
+    });
+
+    // 1. Ambil daftar kelas dan bab dari API config
+    async function loadConfig() {
+      try {
+        const res = await fetch(`/api/config?_t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('Gagal memuat konfigurasi');
+        const data = await res.json();
+
+        selectKelas.innerHTML = '<option value="">-- Pilih Kelas --</option>';
+        (data.kelas || []).forEach(k => {
+          const opt = document.createElement('option');
+          opt.value = k;
+          opt.textContent = k;
+          selectKelas.appendChild(opt);
+        });
+
+        selectBab.innerHTML = '<option value="">-- Pilih Bagian / Bab --</option>';
+        (data.bab || []).forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b;
+          opt.textContent = b;
+          selectBab.appendChild(opt);
+        });
+      } catch (err) {
+        showError('Gagal memuat daftar kelas dan bab. Silakan muat ulang halaman.');
+      }
+    }
+
+    loadConfig();
+
+    // 2. Interaksi pemilihan file
+    dropZone.addEventListener('click', () => inputFile.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        inputFile.files = e.dataTransfer.files;
+        handleFileSelect();
+      }
+    });
+
+    inputFile.addEventListener('change', handleFileSelect);
+
+    function handleFileSelect() {
+      hideError();
+      const file = inputFile.files[0];
+      if (!file) {
+        fileInfoContainer.style.display = 'none';
+        return;
+      }
+
+      if (file.size > MAX_FILE_SIZE) {
+        showError('Ukuran berkas melebihi batas maksimal 10 MB.');
+        inputFile.value = '';
+        fileInfoContainer.style.display = 'none';
+        return;
+      }
+
+      const validExts = ['.pdf', '.doc', '.docx'];
+      const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+      if (!validExts.includes(fileExt)) {
+        showError('Format berkas harus berupa dokumen PDF, DOC, atau DOCX.');
+        inputFile.value = '';
+        fileInfoContainer.style.display = 'none';
+        return;
+      }
+
+      fileNameDisplay.textContent = file.name;
+      fileSizeDisplay.textContent = `(${formatUkuranFile(file.size)})`;
+      fileInfoContainer.style.display = 'block';
+    }
+
+    // 3. Tangani pengiriman formulir
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+
+      const nama = document.getElementById('input-nama').value.trim();
+      const kelas = selectKelas.value;
+      const bab = selectBab.value;
+      const catatanSiswa = inputCatatanSiswa.value.trim();
+      const file = inputFile.files[0];
+
+      // Validasi input
+      if (!nama) {
+        showError('Nama lengkap siswa wajib diisi');
+        return;
+      }
+      if (nama.length > 60) {
+        showError('Nama siswa maksimal 60 karakter');
+        return;
+      }
+      if (!kelas) {
+        showError('Silakan pilih kelas');
+        return;
+      }
+      if (!bab) {
+        showError('Silakan pilih bab karya ilmiah');
+        return;
+      }
+      if (catatanSiswa.length > 300) {
+        showError('Catatan untuk guru maksimal 300 karakter');
+        return;
+      }
+      if (!file) {
+        showError('Silakan pilih berkas naskah KTI');
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        showError('Ukuran berkas melebihi batas maksimal 10 MB');
+        return;
+      }
+
+      // Nonaktifkan tombol kirim selama proses unggah
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Sedang Mengunggah Naskah...';
+      progressContainer.style.display = 'block';
+      progressBarFill.style.width = '0%';
+      progressText.textContent = 'Menyiapkan berkas... 0%';
+
+      try {
+        const submissionId = crypto.randomUUID();
+
+        const cleanExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+        const baseName = file.name.substring(0, file.name.lastIndexOf('.'))
+          .replace(/[^a-zA-Z0-9_\-]/g, '_')
+          .slice(0, 40) || 'naskah_kti';
+        const safeFileName = `${baseName}${cleanExt}`;
+        const uploadPath = `file/${submissionId}/${safeFileName}`;
+
+        // Unggah berkas ke backend server
+        const uploaded = await uploadToBlobDirect(uploadPath, file, {
+          onProgress: (percent) => {
+            progressBarFill.style.width = `${percent}%`;
+            progressText.textContent = `Mengunggah naskah ke server... ${percent}%`;
+          }
+        });
+
+        progressText.textContent = 'Mencatat data naskah...';
+
+        // Simpan metadata rekaman tugas ke /api/submit
+        const submitResp = await fetch('/api/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: submissionId,
+            nama,
+            kelas,
+            bab,
+            fileUrl: uploaded.url,
+            fileNama: file.name,
+            fileTipe: file.type || 'application/octet-stream',
+            catatanSiswa
+          })
+        });
+
+        if (!submitResp.ok) {
+          const errData = await submitResp.json().catch(() => ({}));
+          throw new Error(errData.error || 'Gagal menyimpan naskah ke sistem');
+        }
+
+        const submitResult = await submitResp.json();
+        const tugas = submitResult.tugas;
+
+        // Pesan sukses spesifik
+        if (tugas.revisi) {
+          successHeading.textContent = `Revisi Naskah Berhasil Dikirim (Versi ke-${tugas.versi})`;
+        } else {
+          successHeading.textContent = 'Naskah KTI Berhasil Terkirim';
+        }
+
+        // Render data sukses dengan aman (textContent)
+        successNama.textContent = tugas.nama;
+        successKelasBab.textContent = `${tugas.kelas} — ${tugas.bab}`;
+        successVersi.textContent = `Versi ke-${tugas.versi || 1}`;
+        successWaktu.textContent = `${formatTanggal(tugas.dikirimPada)} (${formatWaktuRelatif(tugas.dikirimPada)})`;
+
+        if (tugas.catatanSiswa) {
+          successCatatan.textContent = `"${tugas.catatanSiswa}"`;
+          successCatatanContainer.style.display = 'block';
+        } else {
+          successCatatanContainer.style.display = 'none';
+        }
+
+        formCard.style.display = 'none';
+        successCard.style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      } catch (err) {
+        showError(err.message || 'Terjadi kendala saat mengunggah naskah. Silakan periksa kembali berkas Anda.');
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = 'Kirim Naskah KTI';
+        progressContainer.style.display = 'none';
+      }
+    });
+
+    // 4. Tombol kirim lagi
+    btnKirimLagi.addEventListener('click', () => {
+      form.reset();
+      charCounterSiswa.textContent = '0 / 300';
+      charCounterSiswa.style.color = 'var(--text-muted)';
+      fileInfoContainer.style.display = 'none';
+      progressContainer.style.display = 'none';
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = 'Kirim Naskah KTI';
+      successCard.style.display = 'none';
+      formCard.style.display = 'block';
+      hideError();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Penilaian Karya Tulis Ilmiah — SMK Bina Rahayu</title>
+  <link rel="icon" type="image/png" href="/assets/logo.png">
+  <link rel="apple-touch-icon" href="/assets/logo.png">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/vendor/jszip.min.js"></script>
+  <script src="/vendor/docx-preview.min.js"></script>
+  <style>
+    .header-user-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .stats-summary {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+    .stat-pill {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0.5rem 0.875rem;
+      font-size: 0.8125rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .stat-pill strong {
+      color: var(--text-main);
+      font-size: 0.9375rem;
+    }
+    .version-history-box {
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .version-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 0.8125rem;
+    }
+    .version-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    .version-item:first-child {
+      padding-top: 0;
+    }
+    .badge-revisi {
+      background-color: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+    }
+    .badge-perlu-ulang {
+      background-color: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fcd34d;
+    }
+    .docx-rendered {
+      background-color: #ffffff;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      border-radius: 4px;
+      margin: 0 auto;
+      max-width: 100%;
+      box-sizing: border-box;
+      color: #1e293b;
+    }
+    .docx-wrapper {
+      background: transparent !important;
+      padding: 0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+    }
+    .docx-wrapper > section.docx {
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1) !important;
+      margin-bottom: 1.5rem !important;
+      background: #ffffff !important;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <a href="/" class="brand-title">
+        <img src="/assets/logo.png" alt="Logo SMK Bina Rahayu" class="brand-logo" width="38" height="38">
+        <div class="brand-text">
+          <span class="brand-school">SMK Bina Rahayu</span>
+          <span class="brand-sub">Penilaian KTI &bull; Bu Ulfa</span>
+        </div>
+      </a>
+
+      <div class="header-actions">
+        <span id="badge-role" class="badge badge-guru">Memuat peran...</span>
+        <button id="btn-logout" class="btn btn-danger-outline" style="min-height: 38px; padding: 0.375rem 0.75rem; font-size: 0.8125rem;">
+          Keluar
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" style="padding-top: 1.5rem; padding-bottom: 3.5rem;">
+    <!-- Ringkasan Statistik -->
+    <div class="stats-summary">
+      <div class="stat-pill">
+        <span class="text-muted">Total Naskah:</span>
+        <strong id="stat-total">0</strong>
+      </div>
+      <div class="stat-pill">
+        <span class="text-muted">Belum Dinilai:</span>
+        <strong id="stat-belum" style="color: var(--warning-accent);">0</strong>
+      </div>
+      <div class="stat-pill">
+        <span class="text-muted">Perlu Dinilai Ulang:</span>
+        <strong id="stat-perlu-ulang" style="color: #b45309;">0</strong>
+      </div>
+      <div class="stat-pill">
+        <span class="text-muted">Sudah Dinilai:</span>
+        <strong id="stat-sudah" style="color: var(--success-accent);">0</strong>
+      </div>
+    </div>
+
+    <!-- Filter & Pencarian -->
+    <div class="filter-bar">
+      <div>
+        <label for="filter-kelas" class="sr-only">Filter Kelas</label>
+        <select id="filter-kelas" class="form-control">
+          <option value="">Semua Kelas</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="filter-bab" class="sr-only">Filter Bab KTI</label>
+        <select id="filter-bab" class="form-control">
+          <option value="">Semua Bagian / Bab</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="filter-status" class="sr-only">Filter Status Penilaian</label>
+        <select id="filter-status" class="form-control">
+          <option value="">Semua Status Penilaian</option>
+          <option value="belum">Belum Dinilai</option>
+          <option value="perlu_ulang">Perlu Dinilai Ulang</option>
+          <option value="sudah">Sudah Dinilai</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="search-nama" class="sr-only">Cari Nama Siswa</label>
+        <input type="search" id="search-nama" class="form-control" placeholder="Cari nama siswa...">
+      </div>
+    </div>
+
+    <!-- Tabel Daftar Naskah KTI -->
+    <div class="table-responsive">
+      <table class="data-table" id="tugas-table">
+        <thead>
+          <tr id="tugas-table-header-row">
+            <th id="th-nama" style="width: 24%;">Nama Siswa</th>
+            <th id="th-kelas" style="width: 10%;">Kelas</th>
+            <th id="th-bab" style="width: 12%;">Bagian / Bab</th>
+            <th id="th-waktu" style="width: 24%;">Waktu Pengiriman</th>
+            <th id="th-status" style="width: 20%;">Status Penilaian</th>
+          </tr>
+        </thead>
+        <tbody id="tugas-table-body">
+          <tr>
+            <td colspan="5" class="empty-state">Memuat data naskah karya ilmiah...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <div class="footer-school-brand">
+        <img src="/assets/logo.png" alt="Logo SMK Bina Rahayu" class="footer-school-logo" width="24" height="24">
+        <span>SMK Bina Rahayu</span>
+      </div>
+      <p>&copy; 2026 SMK Bina Rahayu &bull; Blog Pembelajaran Bahasa Indonesia &bull; Pengampu: Ibu Ulfa &bull; Kelas XI</p>
+    </div>
+  </footer>
+
+  <!-- Modal / Panel Pratinjau & Penilaian -->
+  <div class="modal-backdrop" id="preview-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-content">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <div>
+          <!-- textContent digunakan untuk keamanan XSS -->
+          <h2 id="modal-title" style="font-size: 1.15rem; margin-bottom: 0.2rem;"></h2>
+          <span id="modal-subtitle" class="text-muted" style="font-size: 0.8125rem;"></span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <div id="modal-header-actions"></div>
+          <button type="button" id="btn-close-modal" class="btn btn-secondary" style="min-height: 36px; padding: 0.35rem 0.65rem;" aria-label="Tutup Panel">
+            &times;
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab Switcher untuk Layar Responsif / Layar Sempit (< 900px) -->
+      <div class="modal-tabs" id="modal-tabs">
+        <button type="button" class="modal-tab-btn active" id="tab-btn-viewer">
+          <span>📄</span>
+          <span>Naskah Siswa</span>
+        </button>
+        <button type="button" class="modal-tab-btn" id="tab-btn-grading">
+          <span>📝</span>
+          <span>Penilaian &amp; Riwayat</span>
+        </button>
+      </div>
+
+      <!-- Modal Body (Viewer + Grading) -->
+      <div class="modal-body">
+        <!-- Kolom Viewer Berkas -->
+        <div class="preview-viewer-col" id="preview-viewer-col">
+          <div class="viewer-toolbar">
+            <span id="preview-filename" class="text-muted" style="font-size: 0.8125rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 190px;"></span>
+            <div style="display: flex; gap: 0.375rem; align-items: center;">
+              <!-- Tombol Unduh Berkas Tugas -->
+              <a id="btn-download-file" href="#" download class="btn btn-primary" style="min-height: 32px; padding: 0.25rem 0.65rem; font-size: 0.8125rem;" title="Unduh berkas asli naskah tugas ini">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>Unduh Berkas</span>
+              </a>
+
+              <!-- Tautan buka di tab baru sebagai cadangan -->
+              <a id="btn-open-tab" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="min-height: 32px; padding: 0.25rem 0.65rem; font-size: 0.8125rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+                <span>Buka di tab baru</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Pratinjau PDF -->
+          <iframe id="preview-frame" class="preview-iframe" title="Pratinjau Dokumen Naskah KTI"></iframe>
+          <!-- Pratinjau Word (.docx) langsung di peramban via docx-preview -->
+          <div id="docx-container"></div>
+        </div>
+
+        <!-- Kolom Penilaian & Detail Tugas -->
+        <div class="preview-grading-col" id="preview-grading-col">
+          <div id="modal-alert" class="alert" role="alert"></div>
+
+          <!-- Bagian Riwayat Versi Tugas -->
+          <div class="version-history-box" id="version-history-box">
+            <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem;">Riwayat Versi Naskah KTI:</div>
+            <div id="version-list-container"></div>
+          </div>
+
+          <!-- Bagian Catatan Siswa (Tampil untuk Guru dan Pengawas) -->
+          <div class="form-group">
+            <label style="font-size: 0.875rem; margin-bottom: 0.375rem;">Pesan / Catatan dari Siswa:</label>
+            <!-- textContent digunakan untuk keamanan XSS -->
+            <div class="readonly-box" id="detail-catatan-siswa" style="font-style: italic; color: var(--text-main); white-space: pre-wrap;"></div>
+          </div>
+
+          <!-- Wadah Penilaian Dinamis (Hanya dirender untuk Guru atau Pengawas) -->
+          <div id="dynamic-grading-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { formatTanggal, formatWaktuRelatif, createSafeElement } from '/app.js';
+
+    // State aplikasi
+    let currentRole = null;
+    let rawTugasList = [];
+    let selectedGroup = null;
+    let activeVersion = null; // Versi tugas yang sedang aktif dibuka di modal
+
+    // Elemen DOM
+    const badgeRole = document.getElementById('badge-role');
+    const btnLogout = document.getElementById('btn-logout');
+
+    const statTotal = document.getElementById('stat-total');
+    const statBelum = document.getElementById('stat-belum');
+    const statPerluUlang = document.getElementById('stat-perlu-ulang');
+    const statSudah = document.getElementById('stat-sudah');
+
+    const filterKelas = document.getElementById('filter-kelas');
+    const filterBab = document.getElementById('filter-bab');
+    const filterStatus = document.getElementById('filter-status');
+    const searchNama = document.getElementById('search-nama');
+    const tableBody = document.getElementById('tugas-table-body');
+
+    // Modal Elemen
+    const previewModal = document.getElementById('preview-modal');
+    const btnCloseModal = document.getElementById('btn-close-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalSubtitle = document.getElementById('modal-subtitle');
+    const previewFilename = document.getElementById('preview-filename');
+    const btnDownloadFile = document.getElementById('btn-download-file');
+    const btnOpenTab = document.getElementById('btn-open-tab');
+    const previewFrame = document.getElementById('preview-frame');
+    const docxContainer = document.getElementById('docx-container');
+    const previewViewerCol = document.getElementById('preview-viewer-col');
+    const previewGradingCol = document.getElementById('preview-grading-col');
+    const tabBtnViewer = document.getElementById('tab-btn-viewer');
+    const tabBtnGrading = document.getElementById('tab-btn-grading');
+    const modalAlert = document.getElementById('modal-alert');
+    const versionListContainer = document.getElementById('version-list-container');
+    const detailCatatanSiswa = document.getElementById('detail-catatan-siswa');
+    const dynamicGradingContainer = document.getElementById('dynamic-grading-container');
+
+    function switchModalTab(tab) {
+      if (!tabBtnViewer || !tabBtnGrading) return;
+      if (tab === 'viewer') {
+        tabBtnViewer.classList.add('active');
+        tabBtnGrading.classList.remove('active');
+        previewViewerCol.classList.remove('tab-hidden');
+        previewGradingCol.classList.add('tab-hidden');
+      } else {
+        tabBtnGrading.classList.add('active');
+        tabBtnViewer.classList.remove('active');
+        previewGradingCol.classList.remove('tab-hidden');
+        previewViewerCol.classList.add('tab-hidden');
+      }
+    }
+
+    if (tabBtnViewer && tabBtnGrading) {
+      tabBtnViewer.addEventListener('click', () => switchModalTab('viewer'));
+      tabBtnGrading.addEventListener('click', () => switchModalTab('grading'));
+    }
+
+    // 1. Periksa sesi login
+    async function checkSession() {
+      try {
+        const resp = await fetch('/api/sesi');
+        if (!resp.ok) {
+          window.location.href = '/masuk?peran=guru';
+          return false;
+        }
+        const data = await resp.json();
+        currentRole = data.peran;
+
+        if (currentRole === 'guru') {
+          badgeRole.className = 'badge badge-guru';
+          badgeRole.textContent = 'Ibu Ulfa (Guru Pengampu)';
+        } else if (currentRole === 'pengawas') {
+          badgeRole.className = 'badge badge-pengawas';
+          badgeRole.textContent = 'Pengawas Sekolah';
+        }
+        updateTableHeader();
+
+        return true;
+      } catch (err) {
+        window.location.href = '/masuk?peran=guru';
+        return false;
+      }
+    }
+
+    // 2. Muat konfigurasi kelas dan bab untuk opsi filter
+    async function loadConfig() {
+      try {
+        const resp = await fetch(`/api/config?_t=${Date.now()}`, { cache: 'no-store' });
+        if (!resp.ok) return;
+        const data = await resp.json();
+
+        filterKelas.innerHTML = '<option value="">Semua Kelas</option>';
+        (data.kelas || []).forEach(k => {
+          const opt = document.createElement('option');
+          opt.value = k;
+          opt.textContent = k;
+          filterKelas.appendChild(opt);
+        });
+
+        filterBab.innerHTML = '<option value="">Semua Bagian / Bab</option>';
+        (data.bab || []).forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b;
+          opt.textContent = b;
+          filterBab.appendChild(opt);
+        });
+      } catch (err) {
+        console.error('Gagal memuat config:', err);
+      }
+    }
+
+    // 3. Ambil daftar tugas dari /api/tugas
+    async function loadTugas() {
+      try {
+        const resp = await fetch('/api/tugas');
+        if (!resp.ok) {
+          if (resp.status === 401) {
+            window.location.href = '/masuk?peran=guru';
+            return;
+          }
+          throw new Error('Gagal memuat data tugas');
+        }
+
+        const data = await resp.json();
+        rawTugasList = data.tugas || [];
+        renderTable();
+      } catch (err) {
+        tableBody.innerHTML = '';
+        const row = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = (currentRole === 'guru' ? 6 : 5);
+        td.className = 'empty-state';
+        td.textContent = 'Terjadi kendala saat memuat data naskah. Silakan muat ulang halaman.';
+        row.appendChild(td);
+        tableBody.appendChild(row);
+      }
+    }
+
+    // Perbarui header tabel sesuai peran (tambahkan kolom Aksi untuk Guru)
+    function updateTableHeader() {
+      const headerRow = document.getElementById('tugas-table-header-row');
+      const thNama = document.getElementById('th-nama');
+      const thKelas = document.getElementById('th-kelas');
+      const thBab = document.getElementById('th-bab');
+      const thWaktu = document.getElementById('th-waktu');
+      const thStatus = document.getElementById('th-status');
+      let existingAksi = document.getElementById('th-aksi');
+
+      if (currentRole === 'guru') {
+        if (thNama) thNama.style.width = '24%';
+        if (thKelas) thKelas.style.width = '10%';
+        if (thBab) thBab.style.width = '12%';
+        if (thWaktu) thWaktu.style.width = '22%';
+        if (thStatus) thStatus.style.width = '18%';
+        if (!existingAksi && headerRow) {
+          const thAksi = document.createElement('th');
+          thAksi.id = 'th-aksi';
+          thAksi.style.width = '14%';
+          thAksi.style.textAlign = 'center';
+          thAksi.textContent = 'Aksi';
+          headerRow.appendChild(thAksi);
+        }
+      } else {
+        if (existingAksi) existingAksi.remove();
+        if (thNama) thNama.style.width = '26%';
+        if (thKelas) thKelas.style.width = '12%';
+        if (thBab) thBab.style.width = '14%';
+        if (thWaktu) thWaktu.style.width = '24%';
+        if (thStatus) thStatus.style.width = '24%';
+      }
+    }
+
+    // 4. Filter dan Render Tabel Tugas (Satu baris per siswa per bab, yaitu versi terbaru)
+    function getFilteredTugas() {
+      const kVal = filterKelas.value.trim().toLowerCase();
+      const bVal = filterBab.value.trim().toLowerCase();
+      const sVal = filterStatus.value.trim();
+      const qVal = searchNama.value.trim().toLowerCase();
+
+      return rawTugasList.filter(item => {
+        if (kVal && item.kelas.toLowerCase() !== kVal) return false;
+        if (bVal && item.bab.toLowerCase() !== bVal) return false;
+        if (sVal && item.statusNilai !== sVal) return false;
+        if (qVal && !item.nama.toLowerCase().includes(qVal)) return false;
+        return true;
+      });
+    }
+
+    function renderTable() {
+      updateTableHeader();
+      const filtered = getFilteredTugas();
+
+      // Hitung ringkasan statistik
+      let total = rawTugasList.length;
+      let sudah = 0;
+      let belum = 0;
+      let perluUlang = 0;
+
+      rawTugasList.forEach(item => {
+        if (item.statusNilai === 'sudah') sudah++;
+        else if (item.statusNilai === 'perlu_ulang') perluUlang++;
+        else belum++;
+      });
+
+      statTotal.textContent = total;
+      statSudah.textContent = sudah;
+      statBelum.textContent = belum;
+      statPerluUlang.textContent = perluUlang;
+
+      tableBody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        const row = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = (currentRole === 'guru' ? 6 : 5);
+        td.className = 'empty-state';
+        td.textContent = 'Belum ada naskah karya ilmiah yang sesuai dengan filter atau pencarian.';
+        row.appendChild(td);
+        tableBody.appendChild(row);
+        return;
+      }
+
+      filtered.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.tabIndex = 0;
+        tr.setAttribute('role', 'button');
+        tr.setAttribute('aria-label', `Buka naskah ${item.nama}`);
+
+        // Kolom Nama (Gunakan textContent untuk keamanan XSS)
+        const tdNama = document.createElement('td');
+        tdNama.className = 'cell-nama';
+        const namaSpan = createSafeElement('div', item.nama);
+        tdNama.appendChild(namaSpan);
+
+        // Jika merupakan revisi / ada versi sebelumnya, tampilkan info versi
+        const totalVersi = (item.versiSebelumnya?.length || 0) + 1;
+        if (totalVersi > 1) {
+          const verLink = createSafeElement(
+            'span',
+            `Versi ke-${item.versi || totalVersi} (Revisi - Total ${totalVersi} versi)`,
+            'sub-versions-link'
+          );
+          tdNama.appendChild(verLink);
+        }
+
+        // Kolom Kelas
+        const tdKelas = createSafeElement('td', item.kelas);
+
+        // Kolom Bab
+        const tdBab = createSafeElement('td', item.bab);
+
+        // Kolom Waktu Kirim (Transparan & Detail hingga detik + waktu relatif)
+        const tdWaktu = document.createElement('td');
+        const waktuMain = createSafeElement('div', formatTanggal(item.dikirimPada));
+        waktuMain.style.fontWeight = '500';
+        waktuMain.style.fontSize = '0.8125rem';
+        waktuMain.style.color = 'var(--text-main)';
+        tdWaktu.appendChild(waktuMain);
+
+        const relWaktu = formatWaktuRelatif(item.dikirimPada);
+        if (relWaktu) {
+          const waktuSub = createSafeElement('div', relWaktu, 'text-muted');
+          waktuSub.style.fontSize = '0.725rem';
+          waktuSub.style.marginTop = '0.15rem';
+          tdWaktu.appendChild(waktuSub);
+        }
+
+        // Kolom Status Nilai
+        const tdStatus = document.createElement('td');
+        const badge = document.createElement('span');
+
+        if (item.statusNilai === 'sudah') {
+          badge.className = 'badge badge-success';
+          badge.textContent = `Sudah dinilai: ${item.nilai}`;
+        } else if (item.statusNilai === 'perlu_ulang') {
+          badge.className = 'badge badge-perlu-ulang';
+          badge.textContent = `Perlu dinilai ulang (Nilai lama: ${item.nilaiLama})`;
+          badge.title = `Versi terbaru belum dinilai. Nilai versi ke-${item.versiNilaiLama} adalah ${item.nilaiLama}.`;
+        } else {
+          badge.className = 'badge badge-warning';
+          badge.textContent = 'Belum dinilai';
+        }
+        tdStatus.appendChild(badge);
+
+        tr.appendChild(tdNama);
+        tr.appendChild(tdKelas);
+        tr.appendChild(tdBab);
+        tr.appendChild(tdWaktu);
+        tr.appendChild(tdStatus);
+
+        // Kolom Aksi Hapus Siswa (Hanya untuk Guru)
+        if (currentRole === 'guru') {
+          const tdAksi = document.createElement('td');
+          tdAksi.style.textAlign = 'center';
+          const btnDelStudent = document.createElement('button');
+          btnDelStudent.type = 'button';
+          btnDelStudent.className = 'btn btn-danger-outline';
+          btnDelStudent.style.minHeight = '28px';
+          btnDelStudent.style.padding = '0.2rem 0.5rem';
+          btnDelStudent.style.fontSize = '0.75rem';
+          btnDelStudent.textContent = 'Hapus Siswa';
+          btnDelStudent.title = `Hapus data siswa ${item.nama}`;
+          btnDelStudent.addEventListener('click', (e) => {
+            e.stopPropagation(); // Jangan membuka modal saat klik tombol hapus
+            handleDeleteStudent(item);
+          });
+          tdAksi.appendChild(btnDelStudent);
+          tr.appendChild(tdAksi);
+        }
+
+        tr.addEventListener('click', () => openPreviewModal(item));
+        tr.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openPreviewModal(item);
+          }
+        });
+
+        tableBody.appendChild(tr);
+      });
+    }
+
+    // Event Listener Filter
+    filterKelas.addEventListener('change', renderTable);
+    filterBab.addEventListener('change', renderTable);
+    filterStatus.addEventListener('change', renderTable);
+    searchNama.addEventListener('input', renderTable);
+
+    // 5. Penanganan Panel Pratinjau & Detail
+    function openPreviewModal(groupItem) {
+      selectedGroup = groupItem;
+      const modalHeaderActions = document.getElementById('modal-header-actions');
+      if (modalHeaderActions) {
+        modalHeaderActions.innerHTML = '';
+        if (currentRole === 'guru') {
+          const btnDelModal = document.createElement('button');
+          btnDelModal.type = 'button';
+          btnDelModal.className = 'btn btn-danger-outline';
+          btnDelModal.style.minHeight = '32px';
+          btnDelModal.style.padding = '0.25rem 0.65rem';
+          btnDelModal.style.fontSize = '0.8125rem';
+          btnDelModal.textContent = 'Hapus Siswa';
+          btnDelModal.title = `Hapus seluruh data tugas siswa ${groupItem.nama}`;
+          btnDelModal.addEventListener('click', () => {
+            handleDeleteStudent(groupItem);
+          });
+          modalHeaderActions.appendChild(btnDelModal);
+        }
+      }
+      setupVersionHistory(groupItem);
+      hideModalAlert();
+      switchModalTab('viewer');
+      previewModal.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+
+    // Menata daftar riwayat versi tugas
+    function setupVersionHistory(groupItem) {
+      const allVersions = [
+        {
+          ...groupItem,
+          isLatest: true,
+          label: `Versi ke-${groupItem.versi || ((groupItem.versiSebelumnya?.length || 0) + 1)} (Terbaru)`
+        }
+      ];
+
+      if (groupItem.versiSebelumnya && groupItem.versiSebelumnya.length > 0) {
+        groupItem.versiSebelumnya.forEach((v) => {
+          allVersions.push({
+            ...v,
+            nama: groupItem.nama,
+            kelas: groupItem.kelas,
+            bab: groupItem.bab,
+            isLatest: false,
+            label: `Versi ke-${v.versi || 'lama'}`
+          });
+        });
+      }
+
+      // Render riwayat versi di box
+      versionListContainer.innerHTML = '';
+      allVersions.forEach((ver) => {
+        const itemRow = document.createElement('div');
+        itemRow.className = 'version-item';
+
+        const infoDiv = document.createElement('div');
+        const titleSpan = createSafeElement('strong', ver.label);
+        titleSpan.style.display = 'block';
+
+        const relWaktuVer = formatWaktuRelatif(ver.dikirimPada);
+        const timeDetail = `${formatTanggal(ver.dikirimPada)}${relWaktuVer ? ` (${relWaktuVer})` : ''}`;
+        const timeSpan = createSafeElement('span', timeDetail, 'text-muted');
+        timeSpan.style.fontSize = '0.75rem';
+        infoDiv.appendChild(titleSpan);
+        infoDiv.appendChild(timeSpan);
+
+        const actionsDiv = document.createElement('div');
+        actionsDiv.style.display = 'flex';
+        actionsDiv.style.alignItems = 'center';
+        actionsDiv.style.gap = '0.375rem';
+
+        // Tombol Pratinjau Versi
+        const btnView = document.createElement('button');
+        btnView.type = 'button';
+        btnView.className = 'btn btn-secondary';
+        btnView.style.minHeight = '30px';
+        btnView.style.padding = '0.2rem 0.5rem';
+        btnView.style.fontSize = '0.75rem';
+        btnView.textContent = 'Pratinjau';
+        btnView.addEventListener('click', () => loadVersionDetails(ver));
+        actionsDiv.appendChild(btnView);
+
+        // Tombol Unduh Versi Tertentu
+        const btnDl = document.createElement('a');
+        btnDl.href = ver.fileUrl;
+        btnDl.download = ver.fileNama || 'naskah_kti';
+        btnDl.className = 'btn btn-secondary';
+        btnDl.style.minHeight = '30px';
+        btnDl.style.padding = '0.2rem 0.5rem';
+        btnDl.style.fontSize = '0.75rem';
+        btnDl.textContent = 'Unduh';
+        btnDl.title = `Unduh naskah ${ver.label}`;
+        actionsDiv.appendChild(btnDl);
+
+        // Tombol Hapus Versi (Hanya dirender untuk Guru)
+        if (currentRole === 'guru') {
+          const btnDel = document.createElement('button');
+          btnDel.type = 'button';
+          btnDel.className = 'btn btn-danger-outline';
+          btnDel.style.minHeight = '30px';
+          btnDel.style.padding = '0.2rem 0.5rem';
+          btnDel.style.fontSize = '0.75rem';
+          btnDel.textContent = 'Hapus';
+          btnDel.addEventListener('click', () => handleDeleteVersion(ver));
+          actionsDiv.appendChild(btnDel);
+        }
+
+        itemRow.appendChild(infoDiv);
+        itemRow.appendChild(actionsDiv);
+        versionListContainer.appendChild(itemRow);
+      });
+
+      // Tampilkan versi terbaru pertama kali
+      loadVersionDetails(allVersions[0]);
+    }
+
+    function loadVersionDetails(ver) {
+      activeVersion = ver;
+
+      // Header modal (Gunakan textContent untuk keamanan XSS)
+      modalTitle.textContent = ver.nama;
+      const relWaktuModal = formatWaktuRelatif(ver.dikirimPada);
+      const detailWaktuModal = `${formatTanggal(ver.dikirimPada)}${relWaktuModal ? ` (${relWaktuModal})` : ''}`;
+      modalSubtitle.textContent = `${ver.kelas} • ${ver.bab} • Versi ke-${ver.versi || 1} • Waktu Kirim: ${detailWaktuModal}`;
+      previewFilename.textContent = ver.fileNama;
+      previewFilename.title = ver.fileNama;
+
+      // Hubungkan tombol Unduh Berkas
+      btnDownloadFile.href = ver.fileUrl;
+      btnDownloadFile.download = ver.fileNama || 'naskah_kti';
+
+      // Tautan buka di tab baru sebagai cadangan
+      btnOpenTab.href = ver.fileUrl;
+
+      // Pratinjau Dokumen
+      const isDocx = ver.fileNama && ver.fileNama.toLowerCase().endsWith('.docx');
+      const isLegacyDoc = ver.fileNama && ver.fileNama.toLowerCase().endsWith('.doc');
+
+      if (isDocx && window.docx) {
+        // Pratinjau dokumen DOCX langsung di peramban via docx-preview
+        previewFrame.style.display = 'none';
+        docxContainer.style.display = 'block';
+        docxContainer.innerHTML = '<div style="padding: 2.5rem; text-align: center; color: var(--text-muted);"><p style="font-size: 0.875rem;">Merender dokumen Word (.docx) langsung di peramban...</p></div>';
+
+        fetch(ver.fileUrl)
+          .then(res => {
+            if (!res.ok) throw new Error('Gagal memuat berkas naskah');
+            return res.arrayBuffer();
+          })
+          .then(buf => {
+            docxContainer.innerHTML = '';
+            return window.docx.renderAsync(buf, docxContainer, undefined, {
+              className: 'docx-rendered',
+              inWrapper: true,
+              ignoreWidth: false,
+              ignoreHeight: false
+            });
+          })
+          .catch(err => {
+            docxContainer.innerHTML = `
+              <div style="background: #ffffff; padding: 2rem; border-radius: 8px; border: 1px solid #e2e8f0; max-width: 440px; margin: 2rem auto; text-align: center;">
+                <div style="font-size: 2.25rem; margin-bottom: 0.5rem;">📄</div>
+                <h3 style="margin: 0 0 0.5rem 0; color: #1e293b; font-size: 1.05rem;">Dokumen Word (${ver.fileNama})</h3>
+                <p style="font-size: 0.85rem; line-height: 1.5; margin: 0 0 1.25rem 0; color: #64748b;">
+                  Pratinjau otomatis memerlukan unduhan. Anda dapat mengunduh dan membukanya di Microsoft Word:
+                </p>
+                <a href="${ver.fileUrl}" download="${ver.fileNama}" class="btn btn-primary" style="font-size: 0.875rem;">
+                  Unduh Naskah Word
+                </a>
+              </div>
+            `;
+          });
+      } else if (isLegacyDoc) {
+        // Format .doc lama
+        previewFrame.style.display = 'none';
+        docxContainer.style.display = 'block';
+        docxContainer.innerHTML = `
+          <div style="background: #ffffff; padding: 2rem; border-radius: 8px; border: 1px solid #e2e8f0; max-width: 440px; margin: 2rem auto; text-align: center;">
+            <div style="font-size: 2.25rem; margin-bottom: 0.5rem;">📄</div>
+            <h3 style="margin: 0 0 0.5rem 0; color: #1e293b; font-size: 1.05rem;">Format Word 97-2003 (.doc)</h3>
+            <p style="font-size: 0.85rem; line-height: 1.5; margin: 0 0 1.25rem 0; color: #64748b;">
+              Format biner .doc lama tidak mendukung pratinjau browser langsung. Silakan klik tombol di bawah untuk mengunduh:
+            </p>
+            <a href="${ver.fileUrl}" download="${ver.fileNama}" class="btn btn-primary" style="font-size: 0.875rem;">
+              Unduh Berkas .doc
+            </a>
+          </div>
+        `;
+      } else {
+        // PDF & format lainnya via iframe bawaan browser
+        docxContainer.style.display = 'none';
+        previewFrame.style.display = 'block';
+        previewFrame.removeAttribute('srcdoc');
+        previewFrame.src = ver.fileUrl;
+      }
+
+      // Tampilkan Catatan Siswa (dengan textContent)
+      if (ver.catatanSiswa && ver.catatanSiswa.trim()) {
+        detailCatatanSiswa.textContent = ver.catatanSiswa;
+      } else {
+        detailCatatanSiswa.textContent = '(Tidak ada catatan dari siswa)';
+      }
+
+      // Render bagian penilaian dinamis berdasarkan peran
+      renderGradingSection(ver);
+    }
+
+    // Render bagian penilaian berdasarkan peran
+    function renderGradingSection(ver) {
+      dynamicGradingContainer.innerHTML = '';
+
+      if (currentRole === 'guru') {
+        // GURU:
+        // Guru memberi nilai pada versi terbaru. Versi lama hanya bisa dilihat.
+        if (ver.isLatest) {
+          const formCard = document.createElement('div');
+
+          // Jika status adalah "perlu dinilai ulang", beri info acuan nilai lama
+          if (selectedGroup.statusNilai === 'perlu_ulang') {
+            const acuanAlert = document.createElement('div');
+            acuanAlert.className = 'alert alert-warning';
+            acuanAlert.style.display = 'block';
+            acuanAlert.style.marginBottom = '0.75rem';
+            const acuanTitle = document.createElement('strong');
+            acuanTitle.textContent = 'Perlu Dinilai Ulang: ';
+            acuanAlert.appendChild(acuanTitle);
+            acuanAlert.appendChild(document.createTextNode(`Siswa telah mengirimkan revisi naskah KTI. Acuan nilai versi sebelumnya (Versi ke-${selectedGroup.versiNilaiLama}): `));
+            const acuanNilai = document.createElement('strong');
+            acuanNilai.textContent = String(selectedGroup.nilaiLama);
+            acuanAlert.appendChild(acuanNilai);
+            formCard.appendChild(acuanAlert);
+          }
+
+          const h3 = createSafeElement('h3', 'Lembar Penilaian & Bimbingan (Ibu Ulfa)');
+          h3.style.fontSize = '1rem';
+          h3.style.marginBottom = '0.75rem';
+          formCard.appendChild(h3);
+
+          const form = document.createElement('form');
+          form.id = 'form-penilaian-guru';
+
+          // Input Nilai
+          const groupNilai = document.createElement('div');
+          groupNilai.className = 'form-group';
+          const labelNilai = createSafeElement('label', 'Nilai Karya Tulis (0 - 100)');
+          labelNilai.htmlFor = 'input-nilai-active';
+          const inputNilai = document.createElement('input');
+          inputNilai.type = 'number';
+          inputNilai.id = 'input-nilai-active';
+          inputNilai.className = 'form-control';
+          inputNilai.min = '0';
+          inputNilai.max = '100';
+          inputNilai.step = 'any';
+          inputNilai.placeholder = 'Contoh: 85';
+          inputNilai.required = true;
+          inputNilai.value = (ver.nilai !== null && ver.nilai !== undefined) ? ver.nilai : '';
+          const helpNilai = createSafeElement('div', 'Masukkan angka penilaian dari rentang 0 hingga 100.', 'help-text');
+          groupNilai.appendChild(labelNilai);
+          groupNilai.appendChild(inputNilai);
+          groupNilai.appendChild(helpNilai);
+          form.appendChild(groupNilai);
+
+          // Input Catatan Guru
+          const groupCatatan = document.createElement('div');
+          groupCatatan.className = 'form-group';
+          const headerCatatan = document.createElement('div');
+          headerCatatan.style.display = 'flex';
+          headerCatatan.style.justifyContent = 'space-between';
+          headerCatatan.style.alignItems = 'center';
+          headerCatatan.style.marginBottom = '0.375rem';
+          const labelCatatan = createSafeElement('label', 'Catatan Bimbingan / Umpan Balik untuk Siswa');
+          labelCatatan.style.marginBottom = '0';
+          const charSpan = createSafeElement('span', `${(ver.catatan || '').length} / 500`, 'text-muted');
+          charSpan.style.fontSize = '0.75rem';
+          headerCatatan.appendChild(labelCatatan);
+          headerCatatan.appendChild(charSpan);
+
+          const textCatatan = document.createElement('textarea');
+          textCatatan.className = 'form-control';
+          textCatatan.maxLength = 500;
+          textCatatan.rows = 4;
+          textCatatan.placeholder = 'Tuliskan catatan evaluasi sistematika penulisan, kebahasaan, ketepatan kutipan, atau saran perbaikan...';
+          textCatatan.value = ver.catatan || '';
+
+          textCatatan.addEventListener('input', () => {
+            charSpan.textContent = `${textCatatan.value.length} / 500`;
+          });
+
+          groupCatatan.appendChild(headerCatatan);
+          groupCatatan.appendChild(textCatatan);
+          form.appendChild(groupCatatan);
+
+          // Tombol Simpan Nilai
+          const btnSave = document.createElement('button');
+          btnSave.type = 'submit';
+          btnSave.className = 'btn btn-primary btn-block';
+          btnSave.textContent = 'Simpan Nilai & Catatan';
+          btnSave.style.marginTop = '0.75rem';
+
+          form.appendChild(btnSave);
+
+          form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideModalAlert();
+
+            const nVal = parseFloat(inputNilai.value);
+            if (isNaN(nVal) || nVal < 0 || nVal > 100) {
+              showModalAlert('Nilai harus berupa angka antara 0 sampai 100.');
+              return;
+            }
+
+            btnSave.disabled = true;
+            btnSave.textContent = 'Menyimpan...';
+
+            try {
+              const resp = await fetch('/api/nilai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  id: ver.id,
+                  nilai: nVal,
+                  catatan: textCatatan.value.trim()
+                })
+              });
+
+              const data = await resp.json().catch(() => ({}));
+              if (!resp.ok) throw new Error(data.error || 'Gagal menyimpan nilai');
+
+              showModalAlert('Nilai dan catatan bimbingan berhasil disimpan!', 'success');
+              btnSave.disabled = false;
+              btnSave.textContent = 'Simpan Nilai & Catatan';
+
+              const updated = data.tugas;
+              ver.nilai = updated.nilai;
+              ver.catatan = updated.catatan;
+              ver.dinilaiPada = updated.dinilaiPada;
+
+              selectedGroup.nilai = updated.nilai;
+              selectedGroup.catatan = updated.catatan;
+              selectedGroup.dinilaiPada = updated.dinilaiPada;
+              selectedGroup.statusNilai = 'sudah';
+              selectedGroup.labelStatus = 'Sudah dinilai';
+
+              renderTable();
+            } catch (err) {
+              showModalAlert(err.message || 'Terjadi kesalahan saat menyimpan nilai.');
+              btnSave.disabled = false;
+              btnSave.textContent = 'Simpan Nilai & Catatan';
+            }
+          });
+
+          formCard.appendChild(form);
+          dynamicGradingContainer.appendChild(formCard);
+        } else {
+          // Versi lama hanya bisa dilihat
+          const infoOld = document.createElement('div');
+          const noticeAlert = document.createElement('div');
+          noticeAlert.className = 'alert alert-warning';
+          noticeAlert.style.display = 'block';
+          noticeAlert.style.marginBottom = '0.75rem';
+          noticeAlert.textContent = `Mode Pratinjau Naskah Versi Lama (Versi ke-${ver.versi || 'lama'}). Penilaian hanya dapat diberikan pada naskah versi terbaru.`;
+          infoOld.appendChild(noticeAlert);
+
+          const groupNilai = document.createElement('div');
+          groupNilai.className = 'form-group';
+          groupNilai.appendChild(createSafeElement('label', 'Nilai Versi Ini:'));
+          groupNilai.appendChild(createSafeElement('div', (ver.nilai !== null && ver.nilai !== undefined) ? `${ver.nilai} / 100` : 'Belum dinilai', 'readonly-box'));
+          infoOld.appendChild(groupNilai);
+
+          const groupCatatan = document.createElement('div');
+          groupCatatan.className = 'form-group';
+          groupCatatan.appendChild(createSafeElement('label', 'Catatan Guru Versi Ini:'));
+          groupCatatan.appendChild(createSafeElement('div', ver.catatan || '(Tidak ada catatan)', 'readonly-box'));
+          infoOld.appendChild(groupCatatan);
+
+          dynamicGradingContainer.appendChild(infoOld);
+        }
+      } else {
+        // PENGAWAS:
+        // "Pengawas tidak melihat isian nilai, isian catatan, tombol simpan, maupun tombol hapus.
+        // Elemen itu tidak dirender sama sekali untuk peran pengawas, bukan sekadar disembunyikan dengan CSS."
+        const readonlyCard = document.createElement('div');
+
+        const headerDiv = document.createElement('div');
+        headerDiv.style.display = 'flex';
+        headerDiv.style.alignItems = 'center';
+        headerDiv.style.justifyContent = 'space-between';
+        headerDiv.style.marginBottom = '0.75rem';
+        const titleH3 = createSafeElement('h3', 'Status Penilaian Naskah KTI');
+        titleH3.style.fontSize = '1rem';
+        const badgeMode = createSafeElement('span', 'Mode Pemantauan', 'badge badge-pengawas');
+        headerDiv.appendChild(titleH3);
+        headerDiv.appendChild(badgeMode);
+        readonlyCard.appendChild(headerDiv);
+
+        const groupNilai = document.createElement('div');
+        groupNilai.className = 'form-group';
+        groupNilai.appendChild(createSafeElement('label', 'Nilai Karya Tulis Siswa'));
+        groupNilai.appendChild(createSafeElement(
+          'div',
+          (ver.nilai !== null && ver.nilai !== undefined) ? `${ver.nilai} / 100` : 'Belum dinilai',
+          'readonly-box'
+        ));
+        readonlyCard.appendChild(groupNilai);
+
+        const groupCatatan = document.createElement('div');
+        groupCatatan.className = 'form-group';
+        groupCatatan.appendChild(createSafeElement('label', 'Catatan Bimbingan Guru (Ibu Ulfa)'));
+        groupCatatan.appendChild(createSafeElement(
+          'div',
+          ver.catatan ? ver.catatan : '(Tidak ada catatan guru)',
+          'readonly-box'
+        ));
+        readonlyCard.appendChild(groupCatatan);
+
+        const groupWaktu = document.createElement('div');
+        groupWaktu.className = 'form-group';
+        groupWaktu.appendChild(createSafeElement('label', 'Waktu Dinilai'));
+        groupWaktu.appendChild(createSafeElement(
+          'div',
+          ver.dinilaiPada ? formatTanggal(ver.dinilaiPada) : '-',
+          'readonly-box'
+        ));
+        readonlyCard.appendChild(groupWaktu);
+
+        const noteFooter = createSafeElement(
+          'div',
+          'Pengawas memiliki izin membaca untuk memantau progres tugas dan penilaian. Anda tidak dapat mengubah data.',
+          'help-text'
+        );
+        noteFooter.style.marginTop = '1rem';
+        noteFooter.style.borderTop = '1px solid var(--border-color)';
+        noteFooter.style.paddingTop = '0.75rem';
+        readonlyCard.appendChild(noteFooter);
+
+        dynamicGradingContainer.appendChild(readonlyCard);
+      }
+    }
+
+    // 6. Penanganan Hapus Tugas (Hanya Guru)
+    async function handleDeleteVersion(ver) {
+      const confirmDelete = window.confirm('Hapus naskah versi ini? Tindakan ini tidak bisa dibatalkan.');
+      if (!confirmDelete) return;
+
+      hideModalAlert();
+
+      try {
+        const resp = await fetch('/api/hapus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: ver.id })
+        });
+
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          throw new Error(data.error || 'Gagal menghapus tugas');
+        }
+
+        // Hapus dari struktur data lokal
+        if (selectedGroup) {
+          // Kumpulkan semua versi dalam grup
+          const all = [
+            {
+              id: selectedGroup.id,
+              nama: selectedGroup.nama,
+              kelas: selectedGroup.kelas,
+              bab: selectedGroup.bab,
+              fileUrl: selectedGroup.fileUrl,
+              fileNama: selectedGroup.fileNama,
+              fileTipe: selectedGroup.fileTipe,
+              dikirimPada: selectedGroup.dikirimPada,
+              nilai: selectedGroup.nilai,
+              catatan: selectedGroup.catatan,
+              catatanSiswa: selectedGroup.catatanSiswa,
+              dinilaiPada: selectedGroup.dinilaiPada,
+              versi: selectedGroup.versi
+            },
+            ...(selectedGroup.versiSebelumnya || [])
+          ];
+
+          // Buang versi yang dihapus
+          const remaining = all.filter(v => v.id !== ver.id);
+
+          if (remaining.length === 0) {
+            // Semua versi habis -> hapus baris siswa dari daftar utama
+            rawTugasList = rawTugasList.filter(item => item.id !== selectedGroup.id);
+            closePreviewModal();
+            renderTable();
+            return;
+          }
+
+          // Masih ada versi sebelumnya -> urutkan kembali dari yang terbaru
+          remaining.sort((a, b) => new Date(b.dikirimPada).getTime() - new Date(a.dikirimPada).getTime());
+          const newLatest = remaining[0];
+          const newPrevious = remaining.slice(1);
+
+          // Hitung ulang status nilai
+          let statusNilai = 'belum';
+          let labelStatus = 'Belum dinilai';
+          let nilaiLama = null;
+          let versiNilaiLama = null;
+
+          if (newLatest.nilai !== null && newLatest.nilai !== undefined) {
+            statusNilai = 'sudah';
+            labelStatus = 'Sudah dinilai';
+          } else {
+            const gradedPrev = newPrevious.find((p) => p.nilai !== null && p.nilai !== undefined);
+            if (gradedPrev) {
+              statusNilai = 'perlu_ulang';
+              labelStatus = 'Perlu dinilai ulang';
+              nilaiLama = gradedPrev.nilai;
+              versiNilaiLama = gradedPrev.versi;
+            } else {
+              statusNilai = 'belum';
+              labelStatus = 'Belum dinilai';
+            }
+          }
+
+          // Perbarui item di rawTugasList
+          const groupIdx = rawTugasList.findIndex(item => item.id === selectedGroup.id);
+          const updatedGroupItem = {
+            ...newLatest,
+            statusNilai,
+            labelStatus,
+            nilaiLama,
+            versiNilaiLama,
+            versiSebelumnya: newPrevious
+          };
+
+          if (groupIdx !== -1) {
+            rawTugasList[groupIdx] = updatedGroupItem;
+          }
+
+          selectedGroup = updatedGroupItem;
+          setupVersionHistory(updatedGroupItem);
+          renderTable();
+          showModalAlert('Naskah versi ini berhasil dihapus dan versi sebelumnya aktif.', 'success');
+        }
+      } catch (err) {
+        showModalAlert(err.message || 'Terjadi kesalahan saat menghapus tugas.');
+      }
+    }
+
+    // 6b. Penanganan Hapus Siswa (Hapus Seluruh Data Siswa & Versinya - Hanya Guru)
+    async function handleDeleteStudent(groupItem) {
+      if (currentRole !== 'guru') return;
+
+      const confirmMsg = `Hapus seluruh data tugas siswa "${groupItem.nama}" (${groupItem.kelas} — ${groupItem.bab}) beserta seluruh riwayat revisinya?\nTindakan ini tidak bisa dibatalkan.`;
+      if (!window.confirm(confirmMsg)) return;
+
+      hideModalAlert();
+
+      try {
+        const resp = await fetch('/api/hapus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: groupItem.id,
+            hapusSiswa: true
+          })
+        });
+
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          throw new Error(data.error || 'Gagal menghapus data siswa');
+        }
+
+        // Hapus grup siswa dari memori lokal rawTugasList
+        const targetNama = groupItem.nama.trim().toLowerCase();
+        const targetKelas = groupItem.kelas.trim().toLowerCase();
+        const targetBab = groupItem.bab.trim().toLowerCase();
+
+        rawTugasList = rawTugasList.filter(item => {
+          const match = item.nama.trim().toLowerCase() === targetNama &&
+                        item.kelas.trim().toLowerCase() === targetKelas &&
+                        item.bab.trim().toLowerCase() === targetBab;
+          return !match;
+        });
+
+        if (selectedGroup && selectedGroup.id === groupItem.id) {
+          closePreviewModal();
+        }
+
+        renderTable();
+        alert(`Seluruh data naskah siswa "${groupItem.nama}" berhasil dihapus.`);
+      } catch (err) {
+        alert(err.message || 'Terjadi kesalahan saat menghapus data siswa.');
+      }
+    }
+
+    function closePreviewModal() {
+      previewModal.style.display = 'none';
+      previewFrame.src = 'about:blank';
+      if (docxContainer) docxContainer.innerHTML = '';
+      document.body.style.overflow = '';
+      selectedGroup = null;
+      activeVersion = null;
+    }
+
+    btnCloseModal.addEventListener('click', closePreviewModal);
+
+    // Tutup saat mengklik backdrop luar
+    previewModal.addEventListener('click', (e) => {
+      if (e.target === previewModal) {
+        closePreviewModal();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && previewModal.style.display === 'flex') {
+        closePreviewModal();
+      }
+    });
+
+    function showModalAlert(msg, type = 'danger') {
+      modalAlert.textContent = msg;
+      modalAlert.className = `alert alert-${type}`;
+      modalAlert.style.display = 'block';
+    }
+
+    function hideModalAlert() {
+      modalAlert.textContent = '';
+      modalAlert.style.display = 'none';
+    }
+
+    // Catatan: Cadangan pratinjau Office Apps untuk domain publik: https://view.officeapps.live.com/op/embed.aspx?src=
+    // 7. Logout
+    btnLogout.addEventListener('click', async () => {
+      try {
+        await fetch('/api/logout', { method: 'POST' });
+      } catch {
+        // Abaikan error jaringan saat logout
+      }
+      window.location.href = '/';
+    });
+
+    // Inisialisasi halaman
+    (async () => {
+      const isAuth = await checkSession();
+      if (isAuth) {
+        await loadConfig();
+        await loadTugas();
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,337 @@
+import http from 'node:http';
+import assert from 'node:assert';
+import configHandler from '../api/config.js';
+import loginHandler from '../api/login.js';
+import logoutHandler from '../api/logout.js';
+import sesiHandler from '../api/sesi.js';
+import submitHandler from '../api/submit.js';
+import nilaiHandler from '../api/nilai.js';
+import tugasHandler from '../api/tugas.js';
+import hapusHandler from '../api/hapus.js';
+import { resetLoginRateLimit } from '../api/_auth.js';
+
+process.env.SESSION_SECRET = 'super_secret_session_key_for_testing_purposes_12345';
+process.env.GURU_PASSWORD = 'passwordGuru123';
+process.env.PENGAWAS_PASSWORD = 'passwordPengawas456';
+
+console.log('--- Memulai Pengujian Integrasi HTTP API ---');
+
+// Helper untuk membuat server lokal pengujian
+function createTestServer() {
+  return http.createServer(async (req, res) => {
+    // Helper status & json seperti di Vercel Serverless
+    res.status = (code) => {
+      res.statusCode = code;
+      return res;
+    };
+    res.json = (data) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(data));
+      return res;
+    };
+
+    // Parse body jika ada
+    let rawBody = '';
+    for await (const chunk of req) {
+      rawBody += chunk;
+    }
+    if (rawBody) {
+      try {
+        req.body = JSON.parse(rawBody);
+      } catch {
+        req.body = rawBody;
+      }
+    }
+
+    const url = new URL(req.url, 'http://localhost');
+    const pathname = url.pathname;
+
+    try {
+      if (pathname === '/api/config') return await configHandler(req, res);
+      if (pathname === '/api/login') return await loginHandler(req, res);
+      if (pathname === '/api/logout') return await logoutHandler(req, res);
+      if (pathname === '/api/sesi') return await sesiHandler(req, res);
+      if (pathname === '/api/submit') return await submitHandler(req, res);
+      if (pathname === '/api/nilai') return await nilaiHandler(req, res);
+      if (pathname === '/api/tugas') return await tugasHandler(req, res);
+      if (pathname === '/api/hapus') return await hapusHandler(req, res);
+
+      res.status(404).json({ error: 'Not found' });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+}
+
+const server = createTestServer();
+
+server.listen(0, async () => {
+  const port = server.address().port;
+  const baseUrl = `http://localhost:${port}`;
+
+  try {
+    // 1. Uji GET /api/config
+    console.log('1. Uji GET /api/config (harus hanya XI-1 dan XI-2)...');
+    const configRes = await fetch(`${baseUrl}/api/config`);
+    assert.strictEqual(configRes.status, 200);
+    const configData = await configRes.json();
+    assert.deepStrictEqual(configData.kelas, ['XI-1', 'XI-2'], 'Kelas harus hanya XI-1 dan XI-2');
+    assert.ok(Array.isArray(configData.bab) && configData.bab.includes('Bab 1'));
+
+    // Uji metode selain GET ditolak
+    const postConfigRes = await fetch(`${baseUrl}/api/config`, { method: 'POST' });
+    assert.strictEqual(postConfigRes.status, 405);
+
+    // 2. Uji GET /api/sesi tanpa login (harus 401)
+    console.log('2. Uji GET /api/sesi tanpa login...');
+    const noAuthSesi = await fetch(`${baseUrl}/api/sesi`);
+    assert.strictEqual(noAuthSesi.status, 401, 'Harus 401 jika belum login');
+
+    // 3. Uji GET /api/tugas tanpa login (harus 401)
+    console.log('3. Uji GET /api/tugas tanpa login...');
+    const noAuthTugas = await fetch(`${baseUrl}/api/tugas`);
+    assert.strictEqual(noAuthTugas.status, 401, 'Harus 401 jika belum login');
+
+    // 4. Uji POST /api/login password salah
+    console.log('4. Uji POST /api/login dengan password salah...');
+    resetLoginRateLimit('127.0.0.1');
+    const wrongLoginRes = await fetch(`${baseUrl}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ peran: 'guru', password: 'salah' })
+    });
+    assert.strictEqual(wrongLoginRes.status, 401);
+    const wrongLoginData = await wrongLoginRes.json();
+    assert.strictEqual(wrongLoginData.error, 'Password salah');
+
+    // 5. Uji POST /api/login peran tidak valid
+    console.log('5. Uji POST /api/login peran tidak valid...');
+    const invalidRoleRes = await fetch(`${baseUrl}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ peran: 'admin', password: '123' })
+    });
+    assert.strictEqual(invalidRoleRes.status, 400);
+
+    // 6. Uji POST /api/login Guru berhasil
+    console.log('6. Uji POST /api/login Guru berhasil...');
+    resetLoginRateLimit('127.0.0.1');
+    const guruLoginRes = await fetch(`${baseUrl}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ peran: 'guru', password: 'passwordGuru123' })
+    });
+    assert.strictEqual(guruLoginRes.status, 200);
+    const guruCookie = guruLoginRes.headers.get('set-cookie');
+    assert.ok(guruCookie && guruCookie.includes('session='), 'Harus mengembalikan cookie session');
+
+    // 7. Uji GET /api/sesi dengan cookie Guru
+    console.log('7. Uji GET /api/sesi dengan cookie Guru...');
+    const guruSesiRes = await fetch(`${baseUrl}/api/sesi`, {
+      headers: { Cookie: guruCookie }
+    });
+    assert.strictEqual(guruSesiRes.status, 200);
+    const guruSesiData = await guruSesiRes.json();
+    assert.strictEqual(guruSesiData.peran, 'guru');
+
+    // 8. Uji POST /api/login Pengawas berhasil
+    console.log('8. Uji POST /api/login Pengawas berhasil...');
+    const pengawasLoginRes = await fetch(`${baseUrl}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ peran: 'pengawas', password: 'passwordPengawas456' })
+    });
+    assert.strictEqual(pengawasLoginRes.status, 200);
+    const pengawasCookie = pengawasLoginRes.headers.get('set-cookie');
+    assert.ok(pengawasCookie && pengawasCookie.includes('session='));
+
+    // 9. Uji GET /api/sesi dengan cookie Pengawas
+    console.log('9. Uji GET /api/sesi dengan cookie Pengawas...');
+    const pengawasSesiRes = await fetch(`${baseUrl}/api/sesi`, {
+      headers: { Cookie: pengawasCookie }
+    });
+    assert.strictEqual(pengawasSesiRes.status, 200);
+    const pengawasSesiData = await pengawasSesiRes.json();
+    assert.strictEqual(pengawasSesiData.peran, 'pengawas');
+
+    // 10. Uji POST /api/nilai dengan peran Pengawas (HARUS DITOLAK 403!)
+    console.log('10. Uji POST /api/nilai oleh Pengawas (harus 403 Forbidden)...');
+    const pengawasNilaiRes = await fetch(`${baseUrl}/api/nilai`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: pengawasCookie
+      },
+      body: JSON.stringify({
+        id: '12345678-1234-1234-1234-123456789abc',
+        nilai: 90,
+        catatan: 'Catatan pengawas'
+      })
+    });
+    assert.strictEqual(pengawasNilaiRes.status, 403, 'Pengawas harus mendapat 403 Forbidden saat menilai!');
+    const pengawasNilaiData = await pengawasNilaiRes.json();
+    assert.ok(pengawasNilaiData.error.includes('Hanya guru'));
+
+    // 11. Uji POST /api/nilai tanpa login (harus 401)
+    console.log('11. Uji POST /api/nilai tanpa login (harus 401)...');
+    const noAuthNilaiRes = await fetch(`${baseUrl}/api/nilai`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: '12345678-1234-1234-1234-123456789abc',
+        nilai: 90
+      })
+    });
+    assert.strictEqual(noAuthNilaiRes.status, 401);
+
+    // 12. Uji validasi input pada POST /api/nilai (oleh Guru)
+    console.log('12. Uji validasi nilai di luar batas (oleh Guru)...');
+    const overGradeRes = await fetch(`${baseUrl}/api/nilai`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: guruCookie
+      },
+      body: JSON.stringify({
+        id: '12345678-1234-1234-1234-123456789abc',
+        nilai: 150 // Melebihi 100
+      })
+    });
+    assert.strictEqual(overGradeRes.status, 400);
+
+    // 13. Uji POST /api/hapus
+    console.log('13. Uji endpoint POST /api/hapus...');
+    // Tanpa login -> 401
+    const noAuthHapusRes = await fetch(`${baseUrl}/api/hapus`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: '12345678-1234-1234-1234-123456789abc' })
+    });
+    assert.strictEqual(noAuthHapusRes.status, 401, 'Hapus tanpa login harus 401');
+
+    // Pengawas mencoba menghapus -> 403
+    const pengawasHapusRes = await fetch(`${baseUrl}/api/hapus`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: pengawasCookie
+      },
+      body: JSON.stringify({ id: '12345678-1234-1234-1234-123456789abc' })
+    });
+    assert.strictEqual(pengawasHapusRes.status, 403, 'Hapus oleh pengawas harus 403 Forbidden');
+
+    // Guru dengan ID tidak valid -> 400
+    const badIdHapusRes = await fetch(`${baseUrl}/api/hapus`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: guruCookie
+      },
+      body: JSON.stringify({ id: 'bukan-uuid' })
+    });
+    assert.strictEqual(badIdHapusRes.status, 400);
+
+    // Pengawas mencoba hapus siswa -> 403 Forbidden
+    const pengawasHapusSiswaRes = await fetch(`${baseUrl}/api/hapus`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: pengawasCookie
+      },
+      body: JSON.stringify({ id: 'a1b2c3d4-e5f6-4a5b-8c9d-111111111111', hapusSiswa: true })
+    });
+    assert.strictEqual(pengawasHapusSiswaRes.status, 403, 'Pengawas dilarang menghapus siswa (403)');
+
+    // 14. Uji validasi pada POST /api/submit
+    console.log('14. Uji validasi POST /api/submit (kelas XI-1, XI-2, catatan siswa)...');
+
+    // Kelas XI-3 harus DITOLAK
+    const xi3ClassRes = await fetch(`${baseUrl}/api/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nama: 'Candra',
+        kelas: 'XI-3', // Kelas XI-3 tidak diizinkan
+        bab: 'Bab 1',
+        fileUrl: 'https://store123.public.blob.vercel-storage.com/file/123/tugas.pdf',
+        fileNama: 'tugas.pdf',
+        fileTipe: 'application/pdf'
+      })
+    });
+    assert.strictEqual(xi3ClassRes.status, 400, 'Kelas XI-3 harus ditolak dengan status 400');
+
+    // Kelas lama X-1 harus DITOLAK
+    const oldClassRes = await fetch(`${baseUrl}/api/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nama: 'Budi',
+        kelas: 'X-1', // Kelas lama
+        bab: 'Bab 1',
+        fileUrl: 'https://store123.public.blob.vercel-storage.com/file/123/tugas.pdf',
+        fileNama: 'tugas.pdf',
+        fileTipe: 'application/pdf'
+      })
+    });
+    assert.strictEqual(oldClassRes.status, 400, 'Kelas lama X-1 harus ditolak');
+
+    // Catatan siswa melebihi 300 karakter harus DITOLAK
+    const longNoteSiswa = 'A'.repeat(301);
+    const longNoteRes = await fetch(`${baseUrl}/api/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nama: 'Ahmad',
+        kelas: 'XI-1',
+        bab: 'Bab 1',
+        catatanSiswa: longNoteSiswa,
+        fileUrl: 'https://store123.public.blob.vercel-storage.com/file/123/tugas.pdf',
+        fileNama: 'tugas.pdf',
+        fileTipe: 'application/pdf'
+      })
+    });
+    assert.strictEqual(longNoteRes.status, 400, 'Catatan siswa > 300 karakter harus ditolak');
+
+    // Nama melebihi 60 karakter
+    const longNama = 'A'.repeat(61);
+    const longNamaRes = await fetch(`${baseUrl}/api/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nama: longNama,
+        kelas: 'XI-1',
+        bab: 'Bab 1',
+        fileUrl: 'https://store123.public.blob.vercel-storage.com/file/123/tugas.pdf',
+        fileNama: 'tugas.pdf',
+        fileTipe: 'application/pdf'
+      })
+    });
+    assert.strictEqual(longNamaRes.status, 400);
+
+    // Domain fileUrl bukan Vercel Blob
+    const evilDomainRes = await fetch(`${baseUrl}/api/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nama: 'Ahmad',
+        kelas: 'XI-1',
+        bab: 'Bab 1',
+        fileUrl: 'https://evil-site.com/malicious.pdf',
+        fileNama: 'tugas.pdf',
+        fileTipe: 'application/pdf'
+      })
+    });
+    assert.strictEqual(evilDomainRes.status, 400);
+
+    // 15. Uji POST /api/logout
+    console.log('15. Uji POST /api/logout...');
+    const logoutRes = await fetch(`${baseUrl}/api/logout`, { method: 'POST' });
+    assert.strictEqual(logoutRes.status, 200);
+    const logoutCookie = logoutRes.headers.get('set-cookie');
+    assert.ok(logoutCookie.includes('Max-Age=0'));
+
+    console.log('\n--- SEMUA PENGUJIAN INTEGRASI BERHASIL (100% PASS) ---');
+  } finally {
+    server.close();
+  }
+});
