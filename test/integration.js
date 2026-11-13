@@ -8,6 +8,7 @@ import submitHandler from '../api/submit.js';
 import nilaiHandler from '../api/nilai.js';
 import tugasHandler from '../api/tugas.js';
 import hapusHandler from '../api/hapus.js';
+import babHandler from '../api/bab.js';
 import { resetLoginRateLimit } from '../api/_auth.js';
 
 process.env.SESSION_SECRET = 'super_secret_session_key_for_testing_purposes_12345';
@@ -55,6 +56,7 @@ function createTestServer() {
       if (pathname === '/api/nilai') return await nilaiHandler(req, res);
       if (pathname === '/api/tugas') return await tugasHandler(req, res);
       if (pathname === '/api/hapus') return await hapusHandler(req, res);
+      if (pathname === '/api/bab') return await babHandler(req, res);
 
       res.status(404).json({ error: 'Not found' });
     } catch (err) {
@@ -323,8 +325,59 @@ server.listen(0, async () => {
     });
     assert.strictEqual(evilDomainRes.status, 400);
 
-    // 15. Uji POST /api/logout
-    console.log('15. Uji POST /api/logout...');
+    // 15. Uji endpoint /api/bab (Pengaturan Bab oleh Guru)
+    console.log('15. Uji endpoint /api/bab (Pengaturan Bab oleh Guru)...');
+    // a. GET /api/bab tanpa login (publik)
+    const getBabRes = await fetch(`${baseUrl}/api/bab`);
+    assert.strictEqual(getBabRes.status, 200);
+    const getBabData = await getBabRes.json();
+    assert.ok(Array.isArray(getBabData.bab));
+
+    // b. POST /api/bab tanpa login (harus 401)
+    const postBabNoLogin = await fetch(`${baseUrl}/api/bab`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bab: ['Bab 1: Pendahuluan', 'Bab 2: Kajian Pustaka'] })
+    });
+    assert.strictEqual(postBabNoLogin.status, 401);
+
+    // c. POST /api/bab oleh Pengawas (harus 403 Forbidden)
+    const postBabPengawas = await fetch(`${baseUrl}/api/bab`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        cookie: pengawasCookie
+      },
+      body: JSON.stringify({ bab: ['Bab 1: Pendahuluan'] })
+    });
+    assert.strictEqual(postBabPengawas.status, 403);
+
+    // d. POST /api/bab oleh Guru (berhasil)
+    const postBabGuru = await fetch(`${baseUrl}/api/bab`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        cookie: guruCookie
+      },
+      body: JSON.stringify({ bab: ['Bab 1: Pendahuluan', 'Bab 2: Landasan Teori', 'Bab 3: Metode Penelitian'] })
+    });
+    assert.strictEqual(postBabGuru.status, 200);
+    const postBabGuruData = await postBabGuru.json();
+    assert.strictEqual(postBabGuruData.success, true);
+    assert.strictEqual(postBabGuruData.bab.length, 3);
+
+    // Kembalikan ke default ['Bab 1', 'Bab 2'] untuk kestabilan
+    await fetch(`${baseUrl}/api/bab`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        cookie: guruCookie
+      },
+      body: JSON.stringify({ bab: ['Bab 1', 'Bab 2'] })
+    });
+
+    // 16. Uji POST /api/logout
+    console.log('16. Uji POST /api/logout...');
     const logoutRes = await fetch(`${baseUrl}/api/logout`, { method: 'POST' });
     assert.strictEqual(logoutRes.status, 200);
     const logoutCookie = logoutRes.headers.get('set-cookie');

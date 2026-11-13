@@ -278,7 +278,8 @@ Guru dapat menghapus tugas yang salah kirim atau tidak diperlukan:
 ## Cara Mengubah Kelas, Bab, dan Kata Sandi
 
 ### 1. Mengubah Kelas dan Bab
-Buka file `api/_config.js`:
+- **Mengatur Bab via Dashboard (Praktis):** Guru dapat mengatur jumlah dan judul bab langsung dari antarmuka web melalui tombol **"Atur Bab KTI"** di bilah atas dashboard Guru tanpa perlu mengedit kode.
+- **Mengatur Kelas & Konfigurasi Kode:** Buka file `api/_config.js`:
 ```javascript
 export const KELAS = ['XI-1', 'XI-2'];
 export const BAB = ['Bab 1', 'Bab 2'];

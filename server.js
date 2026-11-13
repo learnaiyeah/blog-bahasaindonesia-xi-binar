@@ -10,6 +10,8 @@ import { fileURLToPath } from 'url';
 import {
   KELAS,
   BAB,
+  getDaftarBab,
+  saveDaftarBab,
   MAX_NAMA_LENGTH,
   MAX_CATATAN_LENGTH,
   MAX_CATATAN_SISWA_LENGTH,
@@ -120,8 +122,71 @@ app.get('/api/config', (req, res) => {
   res.setHeader('Expires', '0');
   res.json({
     kelas: KELAS,
-    bab: BAB
+    bab: getDaftarBab()
   });
+});
+
+// 1b. GET & POST /api/bab (Pengaturan Bab KTI)
+app.get('/api/bab', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.json({ bab: getDaftarBab() });
+});
+
+app.post('/api/bab', async (req, res) => {
+  const session = getSession(req);
+  if (!session) {
+    return res.status(401).json({ error: 'Sesi tidak valid atau telah berakhir. Silakan masuk kembali.' });
+  }
+
+  if (session.peran !== 'guru') {
+    return res.status(403).json({ error: 'Hanya peran Guru yang berhak mengatur bab tugas.' });
+  }
+
+  const { bab } = req.body || {};
+  if (!Array.isArray(bab) || bab.length === 0) {
+    return res.status(400).json({ error: 'Daftar bab harus berupa kumpulan teks dan minimal memiliki 1 bab.' });
+  }
+
+  const cleanBab = bab.map(b => String(b).trim()).filter(Boolean);
+  if (cleanBab.length === 0) {
+    return res.status(400).json({ error: 'Nama bab tidak boleh kosong.' });
+  }
+
+  for (const b of cleanBab) {
+    if (b.length > 100) {
+      return res.status(400).json({ error: `Judul bab "${b}" melebihi batas maksimal 100 karakter.` });
+    }
+  }
+
+  const seen = new Set();
+  for (const b of cleanBab) {
+    const lower = b.toLowerCase();
+    if (seen.has(lower)) {
+      return res.status(400).json({ error: `Terdapat judul bab ganda: "${b}". Setiap bab harus memiliki judul unik.` });
+    }
+    seen.add(lower);
+  }
+
+  try {
+    const updated = saveDaftarBab(cleanBab);
+
+    // Simpan ke MySQL jika terhubung
+    if (isDbConnected()) {
+      const pool = getPool();
+      await pool.query(
+        'INSERT INTO `pengaturan` (`kunci`, `nilai`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `nilai` = ?',
+        ['bab', JSON.stringify(updated), JSON.stringify(updated)]
+      ).catch(e => console.warn('[MySQL Warning] Gagal menyimpan pengaturan bab ke DB:', e.message));
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Pengaturan bab berhasil disimpan',
+      bab: updated
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Gagal menyimpan pengaturan bab' });
+  }
 });
 
 // 2. POST /api/upload (Mengunggah berkas ke server sekolah)
@@ -166,7 +231,7 @@ app.post('/api/submit', async (req, res) => {
   if (!KELAS.includes(kelas)) {
     return res.status(400).json({ error: 'Pilihan kelas tidak valid' });
   }
-  if (!BAB.includes(bab)) {
+  if (!getDaftarBab().includes(bab)) {
     return res.status(400).json({ error: 'Pilihan bab tidak valid' });
   }
 

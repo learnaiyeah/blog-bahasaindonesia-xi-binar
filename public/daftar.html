@@ -93,6 +93,27 @@
       margin-bottom: 1.5rem !important;
       background: #ffffff !important;
     }
+    .bab-item-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      background: var(--bg-subtle);
+      padding: 0.625rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      transition: border-color 0.15s ease;
+    }
+    .bab-item-row:focus-within {
+      border-color: var(--primary);
+    }
+    .bab-badge-num {
+      min-width: 62px;
+      text-align: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -108,6 +129,13 @@
 
       <div class="header-actions">
         <span id="badge-role" class="badge badge-guru">Memuat peran...</span>
+        <button type="button" id="btn-kelola-bab" class="btn btn-secondary" style="min-height: 38px; padding: 0.375rem 0.75rem; font-size: 0.8125rem; display: none;" title="Atur jumlah bab dan judul bab KTI">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+          </svg>
+          <span>Atur Bab KTI</span>
+        </button>
         <button id="btn-logout" class="btn btn-danger-outline" style="min-height: 38px; padding: 0.375rem 0.75rem; font-size: 0.8125rem;">
           Keluar
         </button>
@@ -288,6 +316,46 @@
     </div>
   </div>
 
+  <!-- Modal Kelola Bab KTI (Khusus Guru) -->
+  <div class="modal-backdrop" id="modal-kelola-bab" role="dialog" aria-modal="true" aria-labelledby="modal-kelola-bab-title">
+    <div class="modal-content" style="max-width: 600px; height: auto; max-height: 88vh;">
+      <div class="modal-header">
+        <div>
+          <h2 id="modal-kelola-bab-title" style="font-size: 1.15rem; margin-bottom: 0.2rem;">Atur Bab Karya Tulis Ilmiah</h2>
+          <span class="text-muted" style="font-size: 0.8125rem;">Tentukan jumlah bab dan judul bab yang aktif untuk pengumpulan siswa</span>
+        </div>
+        <button type="button" id="btn-close-kelola-bab" class="btn btn-secondary" style="min-height: 36px; padding: 0.35rem 0.65rem;" aria-label="Tutup Panel">
+          &times;
+        </button>
+      </div>
+
+      <div style="padding: 1.25rem; overflow-y: auto; flex: 1;">
+        <div id="alert-kelola-bab" class="alert" role="alert" style="display: none; margin-bottom: 1rem;"></div>
+
+        <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem; line-height: 1.45;">
+          Guru dapat menambah, mengubah judul, atau mengurangi bab KTI sesuai kurikulum. Perubahan ini otomatis diterapkan ke formulir pengumpulan siswa dan filter daftar.
+        </p>
+
+        <!-- Wadah Daftar Baris Bab -->
+        <div id="bab-items-container" style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.25rem;"></div>
+
+        <!-- Tombol Tambah Bab Baru -->
+        <button type="button" id="btn-tambah-bab-item" class="btn btn-secondary btn-block" style="border-style: dashed; border-color: var(--primary); color: var(--primary); font-weight: 600; min-height: 42px;">
+          + Tambah Bab Baru
+        </button>
+      </div>
+
+      <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--border-color); background-color: var(--bg-subtle); display: flex; justify-content: flex-end; gap: 0.75rem; flex-shrink: 0;">
+        <button type="button" id="btn-batal-kelola-bab" class="btn btn-secondary" style="min-height: 38px;">
+          Batal
+        </button>
+        <button type="button" id="btn-simpan-kelola-bab" class="btn btn-primary" style="min-height: 38px;">
+          Simpan Pengaturan Bab
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { formatTanggal, formatWaktuRelatif, createSafeElement } from '/app.js';
 
@@ -300,6 +368,7 @@
     // Elemen DOM
     const badgeRole = document.getElementById('badge-role');
     const btnLogout = document.getElementById('btn-logout');
+    const btnKelolaBab = document.getElementById('btn-kelola-bab');
 
     const statTotal = document.getElementById('stat-total');
     const statBelum = document.getElementById('stat-belum');
@@ -312,7 +381,7 @@
     const searchNama = document.getElementById('search-nama');
     const tableBody = document.getElementById('tugas-table-body');
 
-    // Modal Elemen
+    // Modal Elemen Pratinjau
     const previewModal = document.getElementById('preview-modal');
     const btnCloseModal = document.getElementById('btn-close-modal');
     const modalTitle = document.getElementById('modal-title');
@@ -330,6 +399,17 @@
     const versionListContainer = document.getElementById('version-list-container');
     const detailCatatanSiswa = document.getElementById('detail-catatan-siswa');
     const dynamicGradingContainer = document.getElementById('dynamic-grading-container');
+
+    // Modal Elemen Kelola Bab KTI
+    const modalKelolaBab = document.getElementById('modal-kelola-bab');
+    const btnCloseKelolaBab = document.getElementById('btn-close-kelola-bab');
+    const btnBatalKelolaBab = document.getElementById('btn-batal-kelola-bab');
+    const btnSimpanKelolaBab = document.getElementById('btn-simpan-kelola-bab');
+    const btnTambahBabItem = document.getElementById('btn-tambah-bab-item');
+    const babItemsContainer = document.getElementById('bab-items-container');
+    const alertKelolaBab = document.getElementById('alert-kelola-bab');
+
+    let currentBabList = [];
 
     function switchModalTab(tab) {
       if (!tabBtnViewer || !tabBtnGrading) return;
@@ -365,9 +445,12 @@
         if (currentRole === 'guru') {
           badgeRole.className = 'badge badge-guru';
           badgeRole.textContent = 'Ibu Ulfa (Guru Pengampu)';
+          if (btnKelolaBab) btnKelolaBab.style.display = 'inline-flex';
         } else if (currentRole === 'pengawas') {
           badgeRole.className = 'badge badge-pengawas';
           badgeRole.textContent = 'Pengawas Sekolah';
+          if (btnKelolaBab) btnKelolaBab.remove();
+          if (modalKelolaBab) modalKelolaBab.remove();
         }
         updateTableHeader();
 
@@ -384,6 +467,7 @@
         const resp = await fetch(`/api/config?_t=${Date.now()}`, { cache: 'no-store' });
         if (!resp.ok) return;
         const data = await resp.json();
+        currentBabList = data.bab || [];
 
         filterKelas.innerHTML = '<option value="">Semua Kelas</option>';
         (data.kelas || []).forEach(k => {
@@ -1233,8 +1317,12 @@
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && previewModal.style.display === 'flex') {
-        closePreviewModal();
+      if (e.key === 'Escape') {
+        if (modalKelolaBab && modalKelolaBab.style.display === 'flex') {
+          closeKelolaBabModal();
+        } else if (previewModal && previewModal.style.display === 'flex') {
+          closePreviewModal();
+        }
       }
     });
 
@@ -1247,6 +1335,192 @@
     function hideModalAlert() {
       modalAlert.textContent = '';
       modalAlert.style.display = 'none';
+    }
+
+    // 6c. Pengaturan Bab KTI (Hanya Guru)
+    function showKelolaBabAlert(msg, type = 'danger') {
+      if (!alertKelolaBab) return;
+      alertKelolaBab.className = `alert alert-${type}`;
+      alertKelolaBab.textContent = msg;
+      alertKelolaBab.style.display = 'block';
+    }
+
+    function hideKelolaBabAlert() {
+      if (!alertKelolaBab) return;
+      alertKelolaBab.textContent = '';
+      alertKelolaBab.style.display = 'none';
+    }
+
+    function updateBabBadges() {
+      if (!babItemsContainer) return;
+      const rows = babItemsContainer.querySelectorAll('.bab-item-row');
+      rows.forEach((row, idx) => {
+        const badge = row.querySelector('.bab-badge-num');
+        if (badge) badge.textContent = `Bab ${idx + 1}`;
+
+        const btnHapus = row.querySelector('.btn-hapus-bab-item');
+        if (btnHapus) {
+          btnHapus.disabled = (rows.length <= 1);
+        }
+      });
+    }
+
+    function createBabRowElement(titleValue = '') {
+      const row = document.createElement('div');
+      row.className = 'bab-item-row';
+
+      const badge = document.createElement('span');
+      badge.className = 'badge badge-guru bab-badge-num';
+      badge.textContent = 'Bab';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'form-control bab-input-title';
+      input.value = titleValue;
+      input.placeholder = 'Contoh: Bab 1: Pendahuluan';
+      input.maxLength = 100;
+      input.style.flex = '1';
+      input.style.minHeight = '38px';
+      input.style.fontSize = '0.875rem';
+
+      const btnHapus = document.createElement('button');
+      btnHapus.type = 'button';
+      btnHapus.className = 'btn btn-danger-outline btn-hapus-bab-item';
+      btnHapus.style.minHeight = '38px';
+      btnHapus.style.padding = '0.35rem 0.65rem';
+      btnHapus.style.fontSize = '0.75rem';
+      btnHapus.textContent = 'Hapus';
+      btnHapus.title = 'Hapus bab ini';
+      btnHapus.addEventListener('click', () => {
+        const totalRows = babItemsContainer.querySelectorAll('.bab-item-row').length;
+        if (totalRows <= 1) {
+          showKelolaBabAlert('Minimal harus ada 1 bab yang aktif.');
+          return;
+        }
+        row.remove();
+        updateBabBadges();
+      });
+
+      row.appendChild(badge);
+      row.appendChild(input);
+      row.appendChild(btnHapus);
+
+      return row;
+    }
+
+    function openKelolaBabModal() {
+      if (!modalKelolaBab) return;
+      hideKelolaBabAlert();
+      babItemsContainer.innerHTML = '';
+
+      const listToRender = (currentBabList && currentBabList.length > 0) ? currentBabList : ['Bab 1', 'Bab 2'];
+      listToRender.forEach(title => {
+        babItemsContainer.appendChild(createBabRowElement(title));
+      });
+      updateBabBadges();
+
+      modalKelolaBab.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeKelolaBabModal() {
+      if (!modalKelolaBab) return;
+      modalKelolaBab.style.display = 'none';
+      document.body.style.overflow = '';
+      hideKelolaBabAlert();
+    }
+
+    if (btnKelolaBab) {
+      btnKelolaBab.addEventListener('click', openKelolaBabModal);
+    }
+    if (btnCloseKelolaBab) {
+      btnCloseKelolaBab.addEventListener('click', closeKelolaBabModal);
+    }
+    if (btnBatalKelolaBab) {
+      btnBatalKelolaBab.addEventListener('click', closeKelolaBabModal);
+    }
+    if (modalKelolaBab) {
+      modalKelolaBab.addEventListener('click', (e) => {
+        if (e.target === modalKelolaBab) {
+          closeKelolaBabModal();
+        }
+      });
+    }
+
+    if (btnTambahBabItem) {
+      btnTambahBabItem.addEventListener('click', () => {
+        hideKelolaBabAlert();
+        const totalRows = babItemsContainer.querySelectorAll('.bab-item-row').length;
+        if (totalRows >= 20) {
+          showKelolaBabAlert('Maksimal 20 bab yang dapat ditambahkan.');
+          return;
+        }
+        const defaultTitle = `Bab ${totalRows + 1}`;
+        const newRow = createBabRowElement(defaultTitle);
+        babItemsContainer.appendChild(newRow);
+        updateBabBadges();
+        const input = newRow.querySelector('input');
+        if (input) {
+          input.focus();
+          input.select();
+        }
+      });
+    }
+
+    if (btnSimpanKelolaBab) {
+      btnSimpanKelolaBab.addEventListener('click', async () => {
+        hideKelolaBabAlert();
+        const inputs = Array.from(babItemsContainer.querySelectorAll('.bab-input-title'));
+        const newBabList = inputs.map(i => i.value.trim()).filter(Boolean);
+
+        if (newBabList.length === 0) {
+          showKelolaBabAlert('Daftar bab tidak boleh kosong. Minimal memiliki 1 bab.');
+          return;
+        }
+
+        // Cek duplikasi
+        const seen = new Set();
+        for (const b of newBabList) {
+          const lower = b.toLowerCase();
+          if (seen.has(lower)) {
+            showKelolaBabAlert(`Terdapat judul bab ganda: "${b}". Setiap bab harus memiliki judul unik.`);
+            return;
+          }
+          seen.add(lower);
+        }
+
+        btnSimpanKelolaBab.disabled = true;
+        btnSimpanKelolaBab.textContent = 'Menyimpan...';
+
+        try {
+          const resp = await fetch('/api/bab', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bab: newBabList })
+          });
+
+          const resData = await resp.json().catch(() => ({}));
+          if (!resp.ok) {
+            throw new Error(resData.error || 'Gagal menyimpan pengaturan bab');
+          }
+
+          currentBabList = resData.bab || newBabList;
+          showKelolaBabAlert('Pengaturan bab berhasil disimpan!', 'success');
+
+          // Segera perbarui dropdown filter bab di dashboard
+          await loadConfig();
+
+          setTimeout(() => {
+            closeKelolaBabModal();
+            btnSimpanKelolaBab.disabled = false;
+            btnSimpanKelolaBab.textContent = 'Simpan Pengaturan Bab';
+          }, 700);
+        } catch (err) {
+          showKelolaBabAlert(err.message || 'Terjadi kesalahan saat menyimpan.');
+          btnSimpanKelolaBab.disabled = false;
+          btnSimpanKelolaBab.textContent = 'Simpan Pengaturan Bab';
+        }
+      });
     }
 
     // Catatan: Cadangan pratinjau Office Apps untuk domain publik: https://view.officeapps.live.com/op/embed.aspx?src=

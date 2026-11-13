@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { put, list } from '@vercel/blob';
-import { KELAS, BAB, MAX_NAMA_LENGTH, MAX_CATATAN_SISWA_LENGTH, ALLOWED_CONTENT_TYPES } from './_config.js';
+import { KELAS, BAB, getDaftarBab, MAX_NAMA_LENGTH, MAX_CATATAN_SISWA_LENGTH, ALLOWED_CONTENT_TYPES } from './_config.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
   }
 
   // 3. Validasi Bab
-  if (!BAB.includes(bab)) {
+  if (!getDaftarBab().includes(bab)) {
     return res.status(400).json({ error: 'Pilihan bab tidak valid' });
   }
 

@@ -35,6 +35,18 @@ CREATE TABLE IF NOT EXISTS `tugas` (
   INDEX `idx_status_nilai` (`nilai`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 1b. Tabel Pengaturan Sistem (Daftar Bab Dinamis)
+CREATE TABLE IF NOT EXISTS `pengaturan` (
+  `kunci` VARCHAR(50) NOT NULL,
+  `nilai` TEXT NOT NULL,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`kunci`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Nilai awal daftar bab pembelajaran
+INSERT IGNORE INTO `pengaturan` (`kunci`, `nilai`) VALUES
+('bab', '["Bab 1", "Bab 2"]');
+
 -- 2. Data Contoh Awal (Opsional untuk Uji Coba)
 INSERT IGNORE INTO `tugas` (
   `id`, `nama`, `kelas`, `bab`, `kunci_nama`, `file_url`, `file_nama`, `file_tipe`,

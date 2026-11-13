@@ -1,5 +1,6 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
+import { getDaftarBab, saveDaftarBab } from './api/_config.js';
 dotenv.config();
 
 const dbConfig = {
@@ -71,6 +72,36 @@ export async function initDatabase() {
         INDEX \`idx_dikirim\` (\`dikirim_pada\`)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    // 4. Buat tabel pengaturan jika belum ada
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS \`pengaturan\` (
+        \`kunci\` VARCHAR(50) NOT NULL,
+        \`nilai\` TEXT NOT NULL,
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`kunci\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    // Sinkronisasi data bab dari database jika ada
+    try {
+      const [rows] = await conn.query('SELECT `nilai` FROM `pengaturan` WHERE `kunci` = ?', ['bab']);
+      if (rows && rows.length > 0 && rows[0].nilai) {
+        const savedBab = JSON.parse(rows[0].nilai);
+        if (Array.isArray(savedBab) && savedBab.length > 0) {
+          saveDaftarBab(savedBab);
+        }
+      } else {
+        // Simpan default ke DB
+        const currentBab = getDaftarBab();
+        await conn.query(
+          'INSERT INTO `pengaturan` (`kunci`, `nilai`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `nilai` = ?',
+          ['bab', JSON.stringify(currentBab), JSON.stringify(currentBab)]
+        );
+      }
+    } catch (e) {
+      console.warn('[MySQL Warning] Sinkronisasi pengaturan bab:', e.message);
+    }
 
     conn.release();
     return true;
