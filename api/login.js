@@ -5,7 +5,8 @@ import {
   resetLoginRateLimit,
   verifyPassword,
   createSessionToken,
-  buildSessionCookie
+  buildSessionCookie,
+  getPassword
 } from './_auth.js';
 
 export default async function handler(req, res) {
@@ -38,10 +39,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Peran harus berupa "guru" atau "pengawas"' });
   }
 
-  // 3. Ambil kata sandi rahasia dari environment variables
-  const expectedPassword = peran === 'guru'
-    ? process.env.GURU_PASSWORD
-    : process.env.PENGAWAS_PASSWORD;
+  // 3. Ambil kata sandi rahasia dari passwords.json atau environment variables
+  const expectedPassword = getPassword(peran);
 
   if (!expectedPassword) {
     console.error(`Kata sandi untuk peran ${peran} belum diatur di environment variable.`);

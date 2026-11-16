@@ -1,6 +1,7 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 import { getDaftarBab, saveDaftarBab } from './api/_config.js';
+import { savePassword } from './api/_auth.js';
 dotenv.config();
 
 const dbConfig = {
@@ -101,6 +102,20 @@ export async function initDatabase() {
       }
     } catch (e) {
       console.warn('[MySQL Warning] Sinkronisasi pengaturan bab:', e.message);
+    }
+
+    // Sinkronisasi kata sandi dari database jika ada
+    try {
+      const [guruRows] = await conn.query('SELECT `nilai` FROM `pengaturan` WHERE `kunci` = ?', ['password_guru']);
+      if (guruRows && guruRows.length > 0 && guruRows[0].nilai) {
+        savePassword('guru', guruRows[0].nilai);
+      }
+      const [pengawasRows] = await conn.query('SELECT `nilai` FROM `pengaturan` WHERE `kunci` = ?', ['password_pengawas']);
+      if (pengawasRows && pengawasRows.length > 0 && pengawasRows[0].nilai) {
+        savePassword('pengawas', pengawasRows[0].nilai);
+      }
+    } catch (e) {
+      console.warn('[MySQL Warning] Sinkronisasi pengaturan kata sandi:', e.message);
     }
 
     conn.release();

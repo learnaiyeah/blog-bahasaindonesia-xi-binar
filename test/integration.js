@@ -9,11 +9,13 @@ import nilaiHandler from '../api/nilai.js';
 import tugasHandler from '../api/tugas.js';
 import hapusHandler from '../api/hapus.js';
 import babHandler from '../api/bab.js';
-import { resetLoginRateLimit } from '../api/_auth.js';
+import passwordHandler from '../api/password.js';
+import { resetLoginRateLimit, resetPasswordStore } from '../api/_auth.js';
 
 process.env.SESSION_SECRET = 'super_secret_session_key_for_testing_purposes_12345';
 process.env.GURU_PASSWORD = 'passwordGuru123';
 process.env.PENGAWAS_PASSWORD = 'passwordPengawas456';
+resetPasswordStore();
 
 console.log('--- Memulai Pengujian Integrasi HTTP API ---');
 
@@ -57,6 +59,7 @@ function createTestServer() {
       if (pathname === '/api/tugas') return await tugasHandler(req, res);
       if (pathname === '/api/hapus') return await hapusHandler(req, res);
       if (pathname === '/api/bab') return await babHandler(req, res);
+      if (pathname === '/api/password') return await passwordHandler(req, res);
 
       res.status(404).json({ error: 'Not found' });
     } catch (err) {
@@ -376,8 +379,104 @@ server.listen(0, async () => {
       body: JSON.stringify({ bab: ['Bab 1', 'Bab 2'] })
     });
 
-    // 16. Uji POST /api/logout
-    console.log('16. Uji POST /api/logout...');
+    // 16. Uji POST /api/password (Ubah Kata Sandi Guru dan Pengawas)
+    console.log('16. Uji POST /api/password...');
+    // a. Tanpa sesi login
+    const noAuthPass = await fetch(`${baseUrl}/api/password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passwordLama: 'xxx', passwordBaru: 'barubaru123', konfirmasiPassword: 'barubaru123' })
+    });
+    assert.strictEqual(noAuthPass.status, 401);
+
+    // b. Kata sandi lama salah
+    const wrongOldPass = await fetch(`${baseUrl}/api/password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: guruCookie },
+      body: JSON.stringify({ passwordLama: 'passwordSalah', passwordBaru: 'guruBaru123', konfirmasiPassword: 'guruBaru123' })
+    });
+    assert.strictEqual(wrongOldPass.status, 400);
+
+    // c. Konfirmasi tidak cocok
+    const mismatchPass = await fetch(`${baseUrl}/api/password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: guruCookie },
+      body: JSON.stringify({ passwordLama: 'passwordGuru123', passwordBaru: 'guruBaru123', konfirmasiPassword: 'guruBaruBeda' })
+    });
+    assert.strictEqual(mismatchPass.status, 400);
+
+    // d. Kata sandi baru terlalu pendek (< 6 char)
+    const shortPass = await fetch(`${baseUrl}/api/password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: guruCookie },
+      body: JSON.stringify({ passwordLama: 'passwordGuru123', passwordBaru: '123', konfirmasiPassword: '123' })
+    });
+    assert.strictEqual(shortPass.status, 400);
+
+    // e. Guru mengubah kata sandi berhasil
+    const changePassGuru = await fetch(`${baseUrl}/api/password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: guruCookie },
+      body: JSON.stringify({ passwordLama: 'passwordGuru123', passwordBaru: 'guruBaru123', konfirmasiPassword: 'guruBaru123' })
+    });
+    assert.strictEqual(changePassGuru.status, 200);
+    const changePassGuruData = await changePassGuru.json();
+    assert.strictEqual(changePassGuruData.success, true);
+
+    // f. Login guru dengan kata sandi lama ditolak
+    resetLoginRateLimit('127.0.0.1');
+    const oldLoginFail = await fetch(`${baseUrl}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ peran: 'guru', password: 'passwordGuru123' })
+    });
+    assert.strictEqual(oldLoginFail.status, 401);
+
+    // g. Login guru dengan kata sandi baru berhasil
+    resetLoginRateLimit('127.0.0.1');
+    const newLoginSuccess = await fetch(`${baseUrl}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ peran: 'guru', password: 'guruBaru123' })
+    });
+    assert.strictEqual(newLoginSuccess.status, 200);
+    const newGuruCookie = newLoginSuccess.headers.get('set-cookie').split(';')[0];
+
+    // h. Kembalikan kata sandi guru ke default untuk kestabilan uji
+    await fetch(`${baseUrl}/api/password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: newGuruCookie },
+      body: JSON.stringify({ passwordLama: 'guruBaru123', passwordBaru: 'passwordGuru123', konfirmasiPassword: 'passwordGuru123' })
+    });
+
+    // i. Pengawas mengubah kata sandi berhasil
+    const changePassPengawas = await fetch(`${baseUrl}/api/password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: pengawasCookie },
+      body: JSON.stringify({ passwordLama: 'passwordPengawas456', passwordBaru: 'pengawasBaru456', konfirmasiPassword: 'pengawasBaru456' })
+    });
+    assert.strictEqual(changePassPengawas.status, 200);
+
+    // j. Login pengawas dengan kata sandi baru berhasil
+    resetLoginRateLimit('127.0.0.1');
+    const newPengawasLogin = await fetch(`${baseUrl}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ peran: 'pengawas', password: 'pengawasBaru456' })
+    });
+    assert.strictEqual(newPengawasLogin.status, 200);
+    const newPengawasCookie = newPengawasLogin.headers.get('set-cookie').split(';')[0];
+
+    // k. Kembalikan kata sandi pengawas ke default
+    await fetch(`${baseUrl}/api/password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: newPengawasCookie },
+      body: JSON.stringify({ passwordLama: 'pengawasBaru456', passwordBaru: 'passwordPengawas456', konfirmasiPassword: 'passwordPengawas456' })
+    });
+    resetPasswordStore();
+
+    // 17. Uji POST /api/logout
+    console.log('17. Uji POST /api/logout...');
     const logoutRes = await fetch(`${baseUrl}/api/logout`, { method: 'POST' });
     assert.strictEqual(logoutRes.status, 200);
     const logoutCookie = logoutRes.headers.get('set-cookie');

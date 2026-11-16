@@ -29,7 +29,9 @@ import {
   recordLoginFailure,
   resetLoginRateLimit,
   getClientIp,
-  getSession
+  getSession,
+  getPassword,
+  savePassword
 } from './api/_auth.js';
 
 import { getPool, initDatabase, isDbConnected } from './db.js';
@@ -361,9 +363,7 @@ app.post('/api/login', async (req, res) => {
     return res.status(400).json({ error: 'Peran tidak valid' });
   }
 
-  const expectedPassword = peran === 'guru'
-    ? (process.env.GURU_PASSWORD || 'guru123')
-    : (process.env.PENGAWAS_PASSWORD || 'pengawas123');
+  const expectedPassword = getPassword(peran);
 
   if (!verifyPassword(password, expectedPassword)) {
     await recordLoginFailure(ip);
@@ -389,6 +389,73 @@ app.get('/api/sesi', (req, res) => {
     return res.status(401).json({ error: 'Tidak ada sesi aktif' });
   }
   return res.status(200).json({ peran: session.peran });
+});
+
+// 6b. POST /api/password (Ubah Kata Sandi Guru & Pengawas)
+app.post('/api/password', async (req, res) => {
+  const session = getSession(req);
+  if (!session) {
+    return res.status(401).json({ error: 'Sesi tidak valid atau telah berakhir. Silakan masuk kembali.' });
+  }
+
+  const peran = session.peran;
+  if (peran !== 'guru' && peran !== 'pengawas') {
+    return res.status(403).json({ error: 'Peran tidak memiliki hak akses untuk mengubah kata sandi.' });
+  }
+
+  const { passwordLama, passwordBaru, konfirmasiPassword } = req.body || {};
+
+  if (!passwordLama || typeof passwordLama !== 'string') {
+    return res.status(400).json({ error: 'Kata sandi saat ini (lama) wajib diisi.' });
+  }
+
+  if (!passwordBaru || typeof passwordBaru !== 'string') {
+    return res.status(400).json({ error: 'Kata sandi baru wajib diisi.' });
+  }
+
+  if (passwordBaru.length < 6) {
+    return res.status(400).json({ error: 'Kata sandi baru minimal 6 karakter.' });
+  }
+
+  if (passwordBaru.length > 100) {
+    return res.status(400).json({ error: 'Kata sandi baru maksimal 100 karakter.' });
+  }
+
+  if (passwordBaru !== konfirmasiPassword) {
+    return res.status(400).json({ error: 'Konfirmasi kata sandi baru tidak cocok.' });
+  }
+
+  if (passwordBaru === passwordLama) {
+    return res.status(400).json({ error: 'Kata sandi baru tidak boleh sama dengan kata sandi lama.' });
+  }
+
+  const currentPassword = getPassword(peran);
+  if (!verifyPassword(passwordLama, currentPassword)) {
+    return res.status(400).json({ error: 'Kata sandi saat ini (lama) tidak sesuai.' });
+  }
+
+  try {
+    savePassword(peran, passwordBaru);
+
+    // Simpan ke MySQL jika terhubung
+    if (isDbConnected()) {
+      const pool = getPool();
+      const dbKey = peran === 'guru' ? 'password_guru' : 'password_pengawas';
+      await pool.query(
+        'INSERT INTO `pengaturan` (`kunci`, `nilai`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `nilai` = ?',
+        [dbKey, passwordBaru, passwordBaru]
+      ).catch(e => console.warn('[MySQL Warning] Gagal menyimpan kata sandi ke DB:', e.message));
+    }
+
+    const labelPeran = peran === 'guru' ? 'Guru' : 'Pengawas';
+    return res.status(200).json({
+      success: true,
+      message: `Kata sandi untuk peran ${labelPeran} berhasil diperbarui.`
+    });
+  } catch (err) {
+    console.error('Error saat menyimpan kata sandi:', err);
+    return res.status(500).json({ error: err.message || 'Gagal menyimpan kata sandi baru.' });
+  }
 });
 
 // 7. GET /api/tugas (Guru & Pengawas)

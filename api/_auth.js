@@ -1,4 +1,103 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PASSWORDS_FILE = path.join(__dirname, '..', 'database', 'passwords.json');
+
+let cachedPasswords = null;
+
+function loadPasswordsFromFile() {
+  try {
+    if (fs.existsSync(PASSWORDS_FILE)) {
+      const data = fs.readFileSync(PASSWORDS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.warn('[Auth Warning] Gagal membaca passwords.json:', e.message);
+  }
+  return {};
+}
+
+/**
+ * Mengambil kata sandi yang berlaku untuk suatu peran.
+ * Membaca dari database/passwords.json jika ada, lalu fallback ke environment variables.
+ * @param {'guru' | 'pengawas'} peran
+ * @returns {string | null}
+ */
+export function getPassword(peran) {
+  if (peran !== 'guru' && peran !== 'pengawas') return null;
+
+  if (!cachedPasswords) {
+    cachedPasswords = loadPasswordsFromFile();
+  }
+
+  if (cachedPasswords[peran]) {
+    return cachedPasswords[peran];
+  }
+
+  if (peran === 'guru') {
+    return process.env.GURU_PASSWORD || 'guru123';
+  } else {
+    return process.env.PENGAWAS_PASSWORD || 'pengawas123';
+  }
+}
+
+/**
+ * Menyimpan kata sandi baru untuk suatu peran ke file database/passwords.json
+ * dan memperbarui cache memori serta environment variables.
+ * @param {'guru' | 'pengawas'} peran
+ * @param {string} newPassword
+ * @returns {boolean}
+ */
+export function savePassword(peran, newPassword) {
+  if (peran !== 'guru' && peran !== 'pengawas') {
+    throw new Error('Peran tidak valid. Harus guru atau pengawas.');
+  }
+
+  if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+    throw new Error('Kata sandi minimal 6 karakter.');
+  }
+
+  if (!cachedPasswords) {
+    cachedPasswords = loadPasswordsFromFile();
+  }
+
+  cachedPasswords[peran] = newPassword;
+
+  // Sinkronkan ke process.env
+  if (peran === 'guru') {
+    process.env.GURU_PASSWORD = newPassword;
+  } else {
+    process.env.PENGAWAS_PASSWORD = newPassword;
+  }
+
+  try {
+    const dir = path.dirname(PASSWORDS_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(PASSWORDS_FILE, JSON.stringify(cachedPasswords, null, 2), 'utf8');
+  } catch (e) {
+    console.warn('[Auth Warning] Gagal menyimpan kata sandi ke passwords.json:', e.message);
+  }
+
+  return true;
+}
+
+/**
+ * Mengatur ulang cache kata sandi (digunakan terutama saat pengujian).
+ */
+export function resetPasswordStore() {
+  cachedPasswords = {};
+  if (fs.existsSync(PASSWORDS_FILE)) {
+    try {
+      fs.unlinkSync(PASSWORDS_FILE);
+    } catch {}
+  }
+}
 
 export const COOKIE_NAME = 'session';
 export const SESSION_DURATION_SECONDS = 8 * 60 * 60; // 8 jam

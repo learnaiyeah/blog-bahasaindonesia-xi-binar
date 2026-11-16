@@ -9,7 +9,10 @@ import {
   resetLoginRateLimit,
   parseCookies,
   buildSessionCookie,
-  buildLogoutCookie
+  buildLogoutCookie,
+  getPassword,
+  savePassword,
+  resetPasswordStore
 } from '../api/_auth.js';
 import { KELAS, BAB, getDaftarBabDetail, saveDaftarBab, MAX_NAMA_LENGTH, MAX_CATATAN_LENGTH, MAX_CATATAN_SISWA_LENGTH } from '../api/_config.js';
 import { sanitizeFileName } from '../api/submit.js';
@@ -20,6 +23,8 @@ import { cekStatusDeadline, hitungSisaWaktuDeadline } from '../public/app.js';
 process.env.SESSION_SECRET = 'test_secret_for_unit_tests_1234567890_abcdef';
 process.env.GURU_PASSWORD = 'guruPassword123';
 process.env.PENGAWAS_PASSWORD = 'pengawasPassword456';
+
+resetPasswordStore();
 
 console.log('--- Memulai Pengujian Unit Backend ---');
 
@@ -134,5 +139,18 @@ assert.ok(statusLate.selisihText.includes('jam'), 'Teks harus memuat selisih jam
 const initialDetail = getDaftarBabDetail();
 assert.ok(Array.isArray(initialDetail) && initialDetail.length > 0);
 assert.ok('judul' in initialDetail[0] && 'deadlineAktif' in initialDetail[0]);
+
+// 9. Uji getPassword dan savePassword
+console.log('9. Menguji pengambilan dan penyimpanan kata sandi...');
+assert.strictEqual(getPassword('guru'), 'guruPassword123');
+assert.strictEqual(getPassword('pengawas'), 'pengawasPassword456');
+assert.strictEqual(getPassword('siswa'), null);
+
+savePassword('guru', 'guruNewPassword789');
+assert.strictEqual(getPassword('guru'), 'guruNewPassword789');
+assert.strictEqual(process.env.GURU_PASSWORD, 'guruNewPassword789');
+
+// Kembalikan ke semula dan bersihkan store
+resetPasswordStore();
 
 console.log('\n--- SEMUA PENGUJIAN UNIT BERHASIL (100% PASS) ---');
