@@ -323,11 +323,11 @@
 
   <!-- Modal Kelola Bab KTI (Khusus Guru) -->
   <div class="modal-backdrop" id="modal-kelola-bab" role="dialog" aria-modal="true" aria-labelledby="modal-kelola-bab-title">
-    <div class="modal-content" style="max-width: 600px; height: auto; max-height: 88vh;">
+    <div class="modal-content" style="max-width: 640px; height: auto; max-height: 88vh;">
       <div class="modal-header">
         <div>
-          <h2 id="modal-kelola-bab-title" style="font-size: 1.15rem; margin-bottom: 0.2rem;">Atur Bab Karya Tulis Ilmiah</h2>
-          <span class="text-muted" style="font-size: 0.8125rem;">Tentukan jumlah bab dan judul bab yang aktif untuk pengumpulan siswa</span>
+          <h2 id="modal-kelola-bab-title" style="font-size: 1.15rem; margin-bottom: 0.2rem;">Atur Bab &amp; Batas Waktu KTI</h2>
+          <span class="text-muted" style="font-size: 0.8125rem;">Tentukan jumlah bab, judul, dan batas pengumpulan (deadline) siswa</span>
         </div>
         <button type="button" id="btn-close-kelola-bab" class="btn btn-secondary" style="min-height: 36px; padding: 0.35rem 0.65rem;" aria-label="Tutup Panel">
           &times;
@@ -338,7 +338,7 @@
         <div id="alert-kelola-bab" class="alert" role="alert" style="display: none; margin-bottom: 1rem;"></div>
 
         <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem; line-height: 1.45;">
-          Guru dapat menambah, mengubah judul, atau mengurangi bab KTI sesuai kurikulum. Perubahan ini otomatis diterapkan ke formulir pengumpulan siswa dan filter daftar.
+          Guru dapat mengatur judul bab serta mengaktifkan batas waktu (deadline) per bab. Siswa yang mengirimkan naskah melewati batas waktu akan otomatis ditandai sebagai <strong>Terlambat</strong>.
         </p>
 
         <!-- Wadah Daftar Baris Bab -->
@@ -362,7 +362,7 @@
   </div>
 
   <script type="module">
-    import { formatTanggal, formatWaktuRelatif, createSafeElement } from '/app.js';
+    import { formatTanggal, formatWaktuRelatif, createSafeElement, cekStatusDeadline } from '/app.js';
 
     // State aplikasi
     let currentRole = null;
@@ -416,6 +416,7 @@
     const alertKelolaBab = document.getElementById('alert-kelola-bab');
 
     let currentBabList = [];
+    let currentBabDetailList = [];
 
     function switchModalTab(tab) {
       if (!tabBtnViewer || !tabBtnGrading) return;
@@ -474,6 +475,7 @@
         if (!resp.ok) return;
         const data = await resp.json();
         currentBabList = data.bab || [];
+        currentBabDetailList = data.babDetail || [];
 
         filterKelas.innerHTML = '<option value="">Semua Kelas</option>';
         (data.kelas || []).forEach(k => {
@@ -655,7 +657,11 @@
         // Kolom Bab
         const tdBab = createSafeElement('td', item.bab);
 
-        // Kolom Waktu Kirim (Transparan & Detail hingga detik + waktu relatif)
+        // Cari pengaturan batas waktu (deadline) bab ini
+        const bDetail = currentBabDetailList.find(b => (b.judul || '').toLowerCase() === (item.bab || '').toLowerCase());
+        const dlStatus = bDetail ? cekStatusDeadline(item.dikirimPada, bDetail.deadline, bDetail.deadlineAktif) : { adaDeadline: false };
+
+        // Kolom Waktu Kirim (Transparan & Detail hingga detik + waktu relatif + status deadline)
         const tdWaktu = document.createElement('td');
         const waktuMain = createSafeElement('div', formatTanggal(item.dikirimPada));
         waktuMain.style.fontWeight = '500';
@@ -669,6 +675,23 @@
           waktuSub.style.fontSize = '0.725rem';
           waktuSub.style.marginTop = '0.15rem';
           tdWaktu.appendChild(waktuSub);
+        }
+
+        // Tampilkan badge ketepatan waktu pengumpulan jika bab memiliki batas waktu aktif
+        if (dlStatus.adaDeadline) {
+          const badgeDl = document.createElement('span');
+          if (dlStatus.lewatDeadline) {
+            badgeDl.className = 'badge badge-telat';
+            badgeDl.textContent = `⏱ ${dlStatus.selisihText}`;
+            badgeDl.title = `Batas pengumpulan: ${dlStatus.detailDeadline}`;
+          } else {
+            badgeDl.className = 'badge badge-tepat';
+            badgeDl.textContent = `✓ ${dlStatus.selisihText}`;
+            badgeDl.title = `Batas pengumpulan: ${dlStatus.detailDeadline}`;
+          }
+          badgeDl.style.marginTop = '0.3rem';
+          badgeDl.style.display = 'inline-flex';
+          tdWaktu.appendChild(badgeDl);
         }
 
         // Kolom Status Nilai
@@ -786,6 +809,24 @@
             : formatTanggal(item.dikirimPada);
           timeDiv.appendChild(createSafeElement('span', timeText));
           card.appendChild(timeDiv);
+
+          // Tampilkan badge keterlambatan / tepat waktu di kartu mobile jika bab berdeadline
+          if (dlStatus.adaDeadline) {
+            const dlMobileDiv = document.createElement('div');
+            dlMobileDiv.style.marginBottom = '0.5rem';
+            const badgeCardDl = document.createElement('span');
+            if (dlStatus.lewatDeadline) {
+              badgeCardDl.className = 'badge badge-telat';
+              badgeCardDl.textContent = `⏱ ${dlStatus.selisihText}`;
+              badgeCardDl.title = `Batas pengumpulan: ${dlStatus.detailDeadline}`;
+            } else {
+              badgeCardDl.className = 'badge badge-tepat';
+              badgeCardDl.textContent = `✓ ${dlStatus.selisihText}`;
+              badgeCardDl.title = `Batas pengumpulan: ${dlStatus.detailDeadline}`;
+            }
+            dlMobileDiv.appendChild(badgeCardDl);
+            card.appendChild(dlMobileDiv);
+          }
 
           // 4. Status Penilaian
           const statusDiv = document.createElement('div');
@@ -908,6 +949,27 @@
         infoDiv.appendChild(titleSpan);
         infoDiv.appendChild(timeSpan);
 
+        // Badge keterlambatan / tepat waktu pada riwayat versi
+        const bDetail = currentBabDetailList.find(b => (b.judul || '').toLowerCase() === (ver.bab || '').toLowerCase());
+        const verDlStatus = bDetail ? cekStatusDeadline(ver.dikirimPada, bDetail.deadline, bDetail.deadlineAktif) : { adaDeadline: false };
+        if (verDlStatus.adaDeadline) {
+          const badgeVer = document.createElement('span');
+          if (verDlStatus.lewatDeadline) {
+            badgeVer.className = 'badge badge-telat';
+            badgeVer.textContent = `⏱ ${verDlStatus.selisihText}`;
+            badgeVer.title = `Batas pengumpulan: ${verDlStatus.detailDeadline}`;
+          } else {
+            badgeVer.className = 'badge badge-tepat';
+            badgeVer.textContent = `✓ ${verDlStatus.selisihText}`;
+            badgeVer.title = `Batas pengumpulan: ${verDlStatus.detailDeadline}`;
+          }
+          badgeVer.style.fontSize = '0.7rem';
+          badgeVer.style.padding = '0.12rem 0.35rem';
+          badgeVer.style.marginTop = '0.2rem';
+          badgeVer.style.display = 'inline-flex';
+          infoDiv.appendChild(badgeVer);
+        }
+
         const actionsDiv = document.createElement('div');
         actionsDiv.style.display = 'flex';
         actionsDiv.style.alignItems = 'center';
@@ -965,7 +1027,15 @@
       modalTitle.textContent = ver.nama;
       const relWaktuModal = formatWaktuRelatif(ver.dikirimPada);
       const detailWaktuModal = `${formatTanggal(ver.dikirimPada)}${relWaktuModal ? ` (${relWaktuModal})` : ''}`;
-      modalSubtitle.textContent = `${ver.kelas} • ${ver.bab} • Versi ke-${ver.versi || 1} • Waktu Kirim: ${detailWaktuModal}`;
+
+      const bDetail = currentBabDetailList.find(b => (b.judul || '').toLowerCase() === (ver.bab || '').toLowerCase());
+      const dlStatus = bDetail ? cekStatusDeadline(ver.dikirimPada, bDetail.deadline, bDetail.deadlineAktif) : { adaDeadline: false };
+
+      let subtitleText = `${ver.kelas} • ${ver.bab} • Versi ke-${ver.versi || 1} • Waktu Kirim: ${detailWaktuModal}`;
+      if (dlStatus.adaDeadline) {
+        subtitleText += ` • Status: ${dlStatus.selisihText} (Batas: ${dlStatus.detailDeadline})`;
+      }
+      modalSubtitle.textContent = subtitleText;
       previewFilename.textContent = ver.fileNama;
       previewFilename.title = ver.fileNama;
 
@@ -1499,9 +1569,17 @@
       });
     }
 
-    function createBabRowElement(titleValue = '') {
+    function createBabRowElement(item = '') {
+      const titleValue = typeof item === 'string' ? item : (item?.judul || '');
+      const deadlineAktif = typeof item === 'object' ? Boolean(item?.deadlineAktif) : false;
+      const deadlineValue = typeof item === 'object' && item?.deadline ? item.deadline.slice(0, 16) : '';
+
       const row = document.createElement('div');
       row.className = 'bab-item-row';
+
+      // 1. Baris Utama (Badge + Judul + Tombol Hapus)
+      const mainRow = document.createElement('div');
+      mainRow.className = 'bab-item-main-row';
 
       const badge = document.createElement('span');
       badge.className = 'badge badge-guru bab-badge-num';
@@ -1535,9 +1613,67 @@
         updateBabBadges();
       });
 
-      row.appendChild(badge);
-      row.appendChild(input);
-      row.appendChild(btnHapus);
+      mainRow.appendChild(badge);
+      mainRow.appendChild(input);
+      mainRow.appendChild(btnHapus);
+      row.appendChild(mainRow);
+
+      // 2. Baris Batas Waktu (Deadline)
+      const deadlineRow = document.createElement('div');
+      deadlineRow.className = 'bab-item-deadline-row';
+
+      const labelToggle = document.createElement('label');
+      labelToggle.className = 'bab-deadline-toggle-label';
+
+      const toggleCheck = document.createElement('input');
+      toggleCheck.type = 'checkbox';
+      toggleCheck.className = 'bab-deadline-toggle';
+      toggleCheck.checked = deadlineAktif;
+
+      const toggleText = document.createElement('span');
+      toggleText.textContent = 'Batas Waktu Pengumpulan (Deadline)';
+
+      labelToggle.appendChild(toggleCheck);
+      labelToggle.appendChild(toggleText);
+
+      const inputWrap = document.createElement('div');
+      inputWrap.className = `bab-deadline-input-wrap ${deadlineAktif ? 'active' : ''}`;
+
+      const inputDatetime = document.createElement('input');
+      inputDatetime.type = 'datetime-local';
+      inputDatetime.className = 'form-control bab-deadline-input';
+      inputDatetime.value = deadlineValue;
+      inputDatetime.style.minHeight = '34px';
+      inputDatetime.style.fontSize = '0.8125rem';
+      inputDatetime.style.padding = '0.25rem 0.5rem';
+
+      const tzLabel = document.createElement('span');
+      tzLabel.className = 'text-muted';
+      tzLabel.style.fontSize = '0.75rem';
+      tzLabel.textContent = 'WIB';
+
+      inputWrap.appendChild(inputDatetime);
+      inputWrap.appendChild(tzLabel);
+
+      toggleCheck.addEventListener('change', () => {
+        if (toggleCheck.checked) {
+          inputWrap.classList.add('active');
+          if (!inputDatetime.value) {
+            const d = new Date();
+            d.setDate(d.getDate() + 7);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            inputDatetime.value = `${y}-${m}-${day}T23:59`;
+          }
+        } else {
+          inputWrap.classList.remove('active');
+        }
+      });
+
+      deadlineRow.appendChild(labelToggle);
+      deadlineRow.appendChild(inputWrap);
+      row.appendChild(deadlineRow);
 
       return row;
     }
@@ -1547,9 +1683,12 @@
       hideKelolaBabAlert();
       babItemsContainer.innerHTML = '';
 
-      const listToRender = (currentBabList && currentBabList.length > 0) ? currentBabList : ['Bab 1', 'Bab 2'];
-      listToRender.forEach(title => {
-        babItemsContainer.appendChild(createBabRowElement(title));
+      const listToRender = (currentBabDetailList && currentBabDetailList.length > 0)
+        ? currentBabDetailList
+        : ((currentBabList && currentBabList.length > 0) ? currentBabList : ['Bab 1', 'Bab 2']);
+
+      listToRender.forEach(item => {
+        babItemsContainer.appendChild(createBabRowElement(item));
       });
       updateBabBadges();
 
@@ -1604,8 +1743,29 @@
     if (btnSimpanKelolaBab) {
       btnSimpanKelolaBab.addEventListener('click', async () => {
         hideKelolaBabAlert();
-        const inputs = Array.from(babItemsContainer.querySelectorAll('.bab-input-title'));
-        const newBabList = inputs.map(i => i.value.trim()).filter(Boolean);
+        const rows = Array.from(babItemsContainer.querySelectorAll('.bab-item-row'));
+        const newBabList = [];
+
+        for (const row of rows) {
+          const titleInput = row.querySelector('.bab-input-title');
+          const toggle = row.querySelector('.bab-deadline-toggle');
+          const dtInput = row.querySelector('.bab-deadline-input');
+
+          const judul = titleInput ? titleInput.value.trim() : '';
+          if (!judul) continue;
+
+          const deadlineAktif = toggle ? toggle.checked : false;
+          let deadline = null;
+          if (deadlineAktif && dtInput && dtInput.value) {
+            deadline = dtInput.value;
+          }
+
+          newBabList.push({
+            judul,
+            deadlineAktif,
+            deadline
+          });
+        }
 
         if (newBabList.length === 0) {
           showKelolaBabAlert('Daftar bab tidak boleh kosong. Minimal memiliki 1 bab.');
@@ -1615,9 +1775,9 @@
         // Cek duplikasi
         const seen = new Set();
         for (const b of newBabList) {
-          const lower = b.toLowerCase();
+          const lower = b.judul.toLowerCase();
           if (seen.has(lower)) {
-            showKelolaBabAlert(`Terdapat judul bab ganda: "${b}". Setiap bab harus memiliki judul unik.`);
+            showKelolaBabAlert(`Terdapat judul bab ganda: "${b.judul}". Setiap bab harus memiliki judul unik.`);
             return;
           }
           seen.add(lower);
@@ -1638,11 +1798,13 @@
             throw new Error(resData.error || 'Gagal menyimpan pengaturan bab');
           }
 
-          currentBabList = resData.bab || newBabList;
-          showKelolaBabAlert('Pengaturan bab berhasil disimpan!', 'success');
+          currentBabList = resData.bab || newBabList.map(b => b.judul);
+          currentBabDetailList = resData.babDetail || newBabList;
+          showKelolaBabAlert('Pengaturan bab dan deadline berhasil disimpan!', 'success');
 
-          // Segera perbarui dropdown filter bab di dashboard
+          // Segera perbarui dropdown filter bab di dashboard dan render ulang tabel
           await loadConfig();
+          renderTable();
 
           setTimeout(() => {
             closeKelolaBabModal();

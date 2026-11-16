@@ -11,6 +11,7 @@ import {
   KELAS,
   BAB,
   getDaftarBab,
+  getDaftarBabDetail,
   saveDaftarBab,
   MAX_NAMA_LENGTH,
   MAX_CATATAN_LENGTH,
@@ -122,14 +123,18 @@ app.get('/api/config', (req, res) => {
   res.setHeader('Expires', '0');
   res.json({
     kelas: KELAS,
-    bab: getDaftarBab()
+    bab: getDaftarBab(),
+    babDetail: getDaftarBabDetail()
   });
 });
 
-// 1b. GET & POST /api/bab (Pengaturan Bab KTI)
+// 1b. GET & POST /api/bab (Pengaturan Bab KTI & Deadline)
 app.get('/api/bab', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.json({ bab: getDaftarBab() });
+  res.json({
+    bab: getDaftarBab(),
+    babDetail: getDaftarBabDetail()
+  });
 });
 
 app.post('/api/bab', async (req, res) => {
@@ -142,47 +147,73 @@ app.post('/api/bab', async (req, res) => {
     return res.status(403).json({ error: 'Hanya peran Guru yang berhak mengatur bab tugas.' });
   }
 
-  const { bab } = req.body || {};
-  if (!Array.isArray(bab) || bab.length === 0) {
-    return res.status(400).json({ error: 'Daftar bab harus berupa kumpulan teks dan minimal memiliki 1 bab.' });
+  const inputList = req.body?.bab || req.body?.babDetail;
+  if (!Array.isArray(inputList) || inputList.length === 0) {
+    return res.status(400).json({ error: 'Daftar bab harus berupa kumpulan teks atau objek bab dan minimal memiliki 1 bab.' });
   }
 
-  const cleanBab = bab.map(b => String(b).trim()).filter(Boolean);
-  if (cleanBab.length === 0) {
-    return res.status(400).json({ error: 'Nama bab tidak boleh kosong.' });
-  }
-
-  for (const b of cleanBab) {
-    if (b.length > 100) {
-      return res.status(400).json({ error: `Judul bab "${b}" melebihi batas maksimal 100 karakter.` });
-    }
-  }
-
+  const cleanItems = [];
   const seen = new Set();
-  for (const b of cleanBab) {
-    const lower = b.toLowerCase();
+
+  for (const item of inputList) {
+    let judul = '';
+    let deadlineAktif = false;
+    let deadline = null;
+
+    if (typeof item === 'string') {
+      judul = item.trim();
+    } else if (item && typeof item === 'object') {
+      judul = String(item.judul || '').trim();
+      deadlineAktif = Boolean(item.deadlineAktif);
+      deadline = item.deadline ? String(item.deadline).trim() : null;
+    }
+
+    if (!judul) {
+      return res.status(400).json({ error: 'Nama bab tidak boleh kosong.' });
+    }
+
+    if (judul.length > 100) {
+      return res.status(400).json({ error: `Judul bab "${judul}" melebihi batas maksimal 100 karakter.` });
+    }
+
+    const lower = judul.toLowerCase();
     if (seen.has(lower)) {
-      return res.status(400).json({ error: `Terdapat judul bab ganda: "${b}". Setiap bab harus memiliki judul unik.` });
+      return res.status(400).json({ error: `Terdapat judul bab ganda: "${judul}". Setiap bab harus memiliki judul unik.` });
     }
     seen.add(lower);
+
+    if (deadlineAktif && deadline) {
+      const dt = new Date(deadline);
+      if (isNaN(dt.getTime())) {
+        return res.status(400).json({ error: `Format tanggal deadline untuk "${judul}" tidak valid.` });
+      }
+    }
+
+    cleanItems.push({
+      judul,
+      deadlineAktif,
+      deadline: deadlineAktif ? deadline : null
+    });
   }
 
   try {
-    const updated = saveDaftarBab(cleanBab);
+    const updated = saveDaftarBab(cleanItems);
+    const detail = getDaftarBabDetail();
 
     // Simpan ke MySQL jika terhubung
     if (isDbConnected()) {
       const pool = getPool();
       await pool.query(
         'INSERT INTO `pengaturan` (`kunci`, `nilai`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `nilai` = ?',
-        ['bab', JSON.stringify(updated), JSON.stringify(updated)]
+        ['bab', JSON.stringify(detail), JSON.stringify(detail)]
       ).catch(e => console.warn('[MySQL Warning] Gagal menyimpan pengaturan bab ke DB:', e.message));
     }
 
     return res.status(200).json({
       success: true,
-      message: 'Pengaturan bab berhasil disimpan',
-      bab: updated
+      message: 'Pengaturan bab dan deadline berhasil disimpan',
+      bab: updated,
+      babDetail: detail
     });
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Gagal menyimpan pengaturan bab' });

@@ -1,4 +1,4 @@
-import { KELAS, BAB } from './_config.js';
+import { KELAS, BAB, getDaftarBabDetail } from './_config.js';
 
 export default function handler(req, res) {
   if (req.method !== 'GET') {
@@ -10,9 +10,10 @@ export default function handler(req, res) {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
 
-  // Mengembalikan daftar kelas dan bab yang aktif
+  // Mengembalikan daftar kelas dan bab yang aktif beserta konfigurasi deadline
   return res.status(200).json({
     kelas: KELAS,
-    bab: BAB
+    bab: BAB,
+    babDetail: getDaftarBabDetail()
   });
 }

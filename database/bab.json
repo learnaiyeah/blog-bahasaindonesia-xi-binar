@@ -1,4 +1,12 @@
 [
-  "Bab 1",
-  "Bab 2"
+  {
+    "judul": "Menulis Teks Resensi",
+    "deadlineAktif": true,
+    "deadline": "2026-11-23T23:59"
+  },
+  {
+    "judul": "Menulis Teks Ceramah",
+    "deadlineAktif": false,
+    "deadline": null
+  }
 ]

@@ -11,9 +11,10 @@ import {
   buildSessionCookie,
   buildLogoutCookie
 } from '../api/_auth.js';
-import { KELAS, BAB, MAX_NAMA_LENGTH, MAX_CATATAN_LENGTH, MAX_CATATAN_SISWA_LENGTH } from '../api/_config.js';
+import { KELAS, BAB, getDaftarBabDetail, saveDaftarBab, MAX_NAMA_LENGTH, MAX_CATATAN_LENGTH, MAX_CATATAN_SISWA_LENGTH } from '../api/_config.js';
 import { sanitizeFileName } from '../api/submit.js';
 import { normalizeKey } from '../api/tugas.js';
+import { cekStatusDeadline, hitungSisaWaktuDeadline } from '../public/app.js';
 
 // Setup environment variables for test
 process.env.SESSION_SECRET = 'test_secret_for_unit_tests_1234567890_abcdef';
@@ -106,5 +107,32 @@ console.log('7. Menguji fungsi normalisasi pengelompokan tugas...');
 const key1 = normalizeKey('Budi Santoso', 'X-1', 'Bab 1');
 const key2 = normalizeKey('  budi   santoso  ', 'x-1', 'bab 1');
 assert.strictEqual(key1, key2, 'Variasi spasi dan huruf besar/kecil harus dinormalkan ke grup yang sama');
+
+// 8. Uji Fitur Deadline dan Status Keterlambatan
+console.log('8. Menguji fitur deadline dan kalkulasi keterlambatan...');
+// a. Deadline tidak aktif / null
+const statusNoDl = cekStatusDeadline('2026-11-20T10:00:00.000Z', null, false);
+assert.strictEqual(statusNoDl.adaDeadline, false, 'Harus tidak ada deadline jika deadlineAktif false');
+
+// b. Pengiriman Tepat Waktu (sebelum deadline)
+const deadlineTime = '2026-11-20T23:59:00.000Z';
+const onTimeSubmission = '2026-11-20T20:00:00.000Z';
+const statusOnTime = cekStatusDeadline(onTimeSubmission, deadlineTime, true);
+assert.strictEqual(statusOnTime.adaDeadline, true);
+assert.strictEqual(statusOnTime.lewatDeadline, false);
+assert.strictEqual(statusOnTime.selisihText, 'Tepat Waktu');
+
+// c. Pengiriman Terlambat (lewat dari deadline)
+const lateSubmission = '2026-11-21T02:30:00.000Z'; // 2 jam 31 menit lewat
+const statusLate = cekStatusDeadline(lateSubmission, deadlineTime, true);
+assert.strictEqual(statusLate.adaDeadline, true);
+assert.strictEqual(statusLate.lewatDeadline, true);
+assert.ok(statusLate.selisihText.includes('Terlambat'), 'Teks harus memuat keterangan Terlambat');
+assert.ok(statusLate.selisihText.includes('jam'), 'Teks harus memuat selisih jam keterlambatan');
+
+// d. Konfigurasi Bab Detail dengan Deadline
+const initialDetail = getDaftarBabDetail();
+assert.ok(Array.isArray(initialDetail) && initialDetail.length > 0);
+assert.ok('judul' in initialDetail[0] && 'deadlineAktif' in initialDetail[0]);
 
 console.log('\n--- SEMUA PENGUJIAN UNIT BERHASIL (100% PASS) ---');

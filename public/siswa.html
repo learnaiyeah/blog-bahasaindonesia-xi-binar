@@ -81,6 +81,7 @@
           <select id="select-bab" name="bab" class="form-control" required>
             <option value="">Memuat daftar bab...</option>
           </select>
+          <div id="bab-deadline-info" class="deadline-info-box" style="display: none;"></div>
         </div>
 
         <!-- Unggah Berkas Naskah KTI -->
@@ -207,7 +208,14 @@
   </footer>
 
   <script type="module">
-    import { formatTanggal, formatWaktuRelatif, formatUkuranFile, uploadToBlobDirect } from '/app.js';
+    import {
+      formatTanggal,
+      formatWaktuRelatif,
+      formatUkuranFile,
+      uploadToBlobDirect,
+      cekStatusDeadline,
+      hitungSisaWaktuDeadline
+    } from '/app.js';
 
     const form = document.getElementById('submission-form');
     const formCard = document.getElementById('form-card');
@@ -215,6 +223,7 @@
     const errorAlert = document.getElementById('error-alert');
     const selectKelas = document.getElementById('select-kelas');
     const selectBab = document.getElementById('select-bab');
+    const babDeadlineInfo = document.getElementById('bab-deadline-info');
     const inputFile = document.getElementById('input-file');
     const dropZone = document.getElementById('drop-zone');
     const fileInfoContainer = document.getElementById('file-info-container');
@@ -235,6 +244,8 @@
     const successWaktu = document.getElementById('success-waktu');
     const successCatatanContainer = document.getElementById('success-catatan-container');
     const successCatatan = document.getElementById('success-catatan');
+
+    let babDetailList = [];
 
     const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -260,12 +271,66 @@
       }
     });
 
+    // Pembaruan notifikasi batas waktu (deadline) saat bab dipilih
+    function updateBabDeadlineNotice() {
+      if (!babDeadlineInfo) return;
+      const selectedTitle = selectBab.value;
+      if (!selectedTitle) {
+        babDeadlineInfo.style.display = 'none';
+        babDeadlineInfo.innerHTML = '';
+        return;
+      }
+
+      const found = babDetailList.find(b => (b.judul || '').toLowerCase() === selectedTitle.toLowerCase());
+      if (found && found.deadlineAktif && found.deadline) {
+        const sisa = hitungSisaWaktuDeadline(found.deadline);
+        const tDeadline = formatTanggal(found.deadline);
+
+        babDeadlineInfo.innerHTML = '';
+        if (sisa.sudahLewat) {
+          babDeadlineInfo.className = 'deadline-info-box deadline-info-expired';
+          const iconSpan = document.createElement('span');
+          iconSpan.textContent = '⚠️';
+          const textSpan = document.createElement('div');
+          const strong = document.createElement('strong');
+          strong.textContent = 'Batas Waktu Telah Berakhir: ';
+          textSpan.appendChild(strong);
+          textSpan.appendChild(document.createTextNode(`Tenggat pengumpulan bab ini adalah ${tDeadline}. Anda tetap dapat mengirimkan naskah, namun pengiriman Anda akan tercatat sebagai TERLAMBAT.`));
+          babDeadlineInfo.appendChild(iconSpan);
+          babDeadlineInfo.appendChild(textSpan);
+        } else {
+          babDeadlineInfo.className = 'deadline-info-box deadline-info-active';
+          const iconSpan = document.createElement('span');
+          iconSpan.textContent = '⏱';
+          const textSpan = document.createElement('div');
+          const strong = document.createElement('strong');
+          strong.textContent = `Batas Waktu Pengumpulan: ${tDeadline}`;
+          const sisaDiv = document.createElement('div');
+          sisaDiv.style.fontSize = '0.75rem';
+          sisaDiv.style.marginTop = '0.15rem';
+          sisaDiv.textContent = sisa.text;
+          textSpan.appendChild(strong);
+          textSpan.appendChild(sisaDiv);
+          babDeadlineInfo.appendChild(iconSpan);
+          babDeadlineInfo.appendChild(textSpan);
+        }
+        babDeadlineInfo.style.display = 'flex';
+      } else {
+        babDeadlineInfo.className = 'deadline-info-box deadline-info-none';
+        babDeadlineInfo.textContent = 'ℹ️ Tidak ada batasan tenggat waktu pengumpulan untuk bab ini.';
+        babDeadlineInfo.style.display = 'flex';
+      }
+    }
+
+    selectBab.addEventListener('change', updateBabDeadlineNotice);
+
     // 1. Ambil daftar kelas dan bab dari API config
     async function loadConfig() {
       try {
         const res = await fetch(`/api/config?_t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) throw new Error('Gagal memuat konfigurasi');
         const data = await res.json();
+        babDetailList = data.babDetail || [];
 
         selectKelas.innerHTML = '<option value="">-- Pilih Kelas --</option>';
         (data.kelas || []).forEach(k => {
@@ -442,7 +507,14 @@
         successNama.textContent = tugas.nama;
         successKelasBab.textContent = `${tugas.kelas} — ${tugas.bab}`;
         successVersi.textContent = `Versi ke-${tugas.versi || 1}`;
-        successWaktu.textContent = `${formatTanggal(tugas.dikirimPada)} (${formatWaktuRelatif(tugas.dikirimPada)})`;
+
+        const foundBab = babDetailList.find(b => (b.judul || '').toLowerCase() === (tugas.bab || '').toLowerCase());
+        const dlStatus = foundBab ? cekStatusDeadline(tugas.dikirimPada, foundBab.deadline, foundBab.deadlineAktif) : { adaDeadline: false };
+        if (dlStatus.adaDeadline) {
+          successWaktu.textContent = `${formatTanggal(tugas.dikirimPada)} (${formatWaktuRelatif(tugas.dikirimPada)}) — Status: ${dlStatus.selisihText}`;
+        } else {
+          successWaktu.textContent = `${formatTanggal(tugas.dikirimPada)} (${formatWaktuRelatif(tugas.dikirimPada)})`;
+        }
 
         if (tugas.catatanSiswa) {
           successCatatan.textContent = `"${tugas.catatanSiswa}"`;
@@ -468,6 +540,10 @@
       form.reset();
       charCounterSiswa.textContent = '0 / 300';
       charCounterSiswa.style.color = 'var(--text-muted)';
+      if (babDeadlineInfo) {
+        babDeadlineInfo.style.display = 'none';
+        babDeadlineInfo.innerHTML = '';
+      }
       fileInfoContainer.style.display = 'none';
       progressContainer.style.display = 'none';
       btnSubmit.disabled = false;

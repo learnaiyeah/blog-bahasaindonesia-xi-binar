@@ -59,6 +59,106 @@ export function formatWaktuRelatif(isoString) {
 }
 
 /**
+ * Memeriksa status pengumpulan terhadap batas waktu (deadline) bab.
+ * @param {string|Date} dikirimPada
+ * @param {string|Date} deadline
+ * @param {boolean} deadlineAktif
+ * @returns {{ adaDeadline: boolean, lewatDeadline: boolean, selisihText: string, detailDeadline: string }}
+ */
+export function cekStatusDeadline(dikirimPada, deadline, deadlineAktif) {
+  if (!deadlineAktif || !deadline) {
+    return { adaDeadline: false, lewatDeadline: false, selisihText: '', detailDeadline: '' };
+  }
+
+  const tKirim = new Date(dikirimPada).getTime();
+  const tDeadline = new Date(deadline).getTime();
+  if (isNaN(tKirim) || isNaN(tDeadline)) {
+    return { adaDeadline: false, lewatDeadline: false, selisihText: '', detailDeadline: '' };
+  }
+
+  const diffMs = tKirim - tDeadline;
+  const detailDeadline = formatTanggal(deadline);
+
+  if (diffMs > 0) {
+    // Terlambat
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHours = Math.floor(diffMin / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    let selisihText = '';
+    if (diffDays > 0) {
+      const sisaJam = diffHours % 24;
+      selisihText = sisaJam > 0 ? `${diffDays} hari ${sisaJam} jam` : `${diffDays} hari`;
+    } else if (diffHours > 0) {
+      const sisaMenit = diffMin % 60;
+      selisihText = sisaMenit > 0 ? `${diffHours} jam ${sisaMenit} mnt` : `${diffHours} jam`;
+    } else if (diffMin > 0) {
+      selisihText = `${diffMin} menit`;
+    } else {
+      selisihText = `${diffSec} detik`;
+    }
+
+    return {
+      adaDeadline: true,
+      lewatDeadline: true,
+      selisihText: `Terlambat ${selisihText}`,
+      detailDeadline
+    };
+  } else {
+    // Tepat Waktu
+    return {
+      adaDeadline: true,
+      lewatDeadline: false,
+      selisihText: 'Tepat Waktu',
+      detailDeadline
+    };
+  }
+}
+
+/**
+ * Menghitung sisa waktu menuju batas waktu (deadline).
+ * @param {string|Date} deadline
+ * @returns {{ sudahLewat: boolean, text: string }}
+ */
+export function hitungSisaWaktuDeadline(deadline) {
+  if (!deadline) return { sudahLewat: false, text: '' };
+  const tDeadline = new Date(deadline).getTime();
+  if (isNaN(tDeadline)) return { sudahLewat: false, text: '' };
+
+  const now = Date.now();
+  const diffMs = tDeadline - now;
+
+  if (diffMs <= 0) {
+    return { sudahLewat: true, text: 'Batas waktu telah berakhir' };
+  }
+
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHours = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays > 0) {
+    const sisaJam = diffHours % 24;
+    return {
+      sudahLewat: false,
+      text: sisaJam > 0 ? `Sisa waktu ${diffDays} hari ${sisaJam} jam lagi` : `Sisa waktu ${diffDays} hari lagi`
+    };
+  }
+  if (diffHours > 0) {
+    const sisaMenit = diffMin % 60;
+    return {
+      sudahLewat: false,
+      text: sisaMenit > 0 ? `Sisa waktu ${diffHours} jam ${sisaMenit} menit lagi` : `Sisa waktu ${diffHours} jam lagi`
+    };
+  }
+  if (diffMin > 0) {
+    return { sudahLewat: false, text: `Sisa waktu ${diffMin} menit lagi` };
+  }
+  return { sudahLewat: false, text: `Sisa waktu ${diffSec} detik lagi` };
+}
+
+/**
  * Format ukuran file ke bentuk KB atau MB.
  * @param {number} bytes
  * @returns {string}
