@@ -6,11 +6,18 @@ import {
   verifyPassword,
   createSessionToken,
   buildSessionCookie,
+  buildLogoutCookie,
   getPassword,
   syncPasswordsFromBlob
 } from './_auth.js';
 
 export default async function handler(req, res) {
+  // Mendukung logout jika menerima GET atau query action=logout
+  if (req.query?.action === 'logout' || req.body?.action === 'logout') {
+    res.setHeader('Set-Cookie', buildLogoutCookie());
+    return res.status(200).json({ ok: true });
+  }
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Metode tidak diizinkan' });

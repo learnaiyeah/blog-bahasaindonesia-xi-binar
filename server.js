@@ -382,6 +382,14 @@ app.post('/api/logout', (req, res) => {
   return res.status(200).json({ ok: true });
 });
 
+app.all('/api/login', (req, res, next) => {
+  if (req.query?.action === 'logout' || req.body?.action === 'logout') {
+    res.setHeader('Set-Cookie', buildLogoutCookie());
+    return res.status(200).json({ ok: true });
+  }
+  next();
+});
+
 // 6. GET /api/sesi
 app.get('/api/sesi', (req, res) => {
   const session = getSession(req);

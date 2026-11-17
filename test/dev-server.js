@@ -4,7 +4,6 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import configHandler from '../api/config.js';
 import loginHandler from '../api/login.js';
-import logoutHandler from '../api/logout.js';
 import sesiHandler from '../api/sesi.js';
 import submitHandler from '../api/submit.js';
 import nilaiHandler from '../api/nilai.js';
@@ -157,7 +156,7 @@ const server = http.createServer(async (req, res) => {
     try {
       if (pathname === '/api/config') return await configHandler(req, res);
       if (pathname === '/api/login') return await loginHandler(req, res);
-      if (pathname === '/api/logout') return await logoutHandler(req, res);
+      if (pathname === '/api/logout') return await loginHandler(Object.assign(req, { query: { action: 'logout' } }), res);
       if (pathname === '/api/sesi') return await sesiHandler(req, res);
 
       // Jika belum ada token Vercel Blob, gunakan mock lokal untuk upload & database tugas

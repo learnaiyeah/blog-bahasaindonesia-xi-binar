@@ -2,7 +2,6 @@ import http from 'node:http';
 import assert from 'node:assert';
 import configHandler from '../api/config.js';
 import loginHandler from '../api/login.js';
-import logoutHandler from '../api/logout.js';
 import sesiHandler from '../api/sesi.js';
 import submitHandler from '../api/submit.js';
 import nilaiHandler from '../api/nilai.js';
@@ -54,7 +53,7 @@ function createTestServer() {
     try {
       if (pathname === '/api/config') return await configHandler(req, res);
       if (pathname === '/api/login') return await loginHandler(req, res);
-      if (pathname === '/api/logout') return await logoutHandler(req, res);
+      if (pathname === '/api/logout') return await loginHandler(Object.assign(req, { query: { action: 'logout' } }), res);
       if (pathname === '/api/sesi') return await sesiHandler(req, res);
       if (pathname === '/api/submit') return await submitHandler(req, res);
       if (pathname === '/api/nilai') return await nilaiHandler(req, res);
