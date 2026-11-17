@@ -458,6 +458,123 @@ app.post('/api/password', async (req, res) => {
   }
 });
 
+// 6c. GET /api/backup (Cadangkan Data Tugas - Khusus Guru)
+app.get('/api/backup', async (req, res) => {
+  const session = getSession(req);
+  if (!session) {
+    return res.status(401).json({ error: 'Tidak diizinkan. Silakan masuk terlebih dahulu.' });
+  }
+  if (session.peran !== 'guru') {
+    return res.status(403).json({ error: 'Akses ditolak. Hanya guru yang dapat mengunduh cadangan data.' });
+  }
+
+  try {
+    let allTugas = [];
+    if (isDbConnected()) {
+      const pool = getPool();
+      const [rows] = await pool.query('SELECT * FROM tugas ORDER BY dikirim_pada DESC');
+      allTugas = rows.map((r) => ({
+        id: r.id,
+        nama: r.nama,
+        kelas: r.kelas,
+        bab: r.bab,
+        kunciNama: r.kunci_nama,
+        fileUrl: r.file_url,
+        fileNama: r.file_nama,
+        fileTipe: r.file_tipe,
+        catatanSiswa: r.catatan_siswa || '',
+        nilai: r.nilai !== null ? Number(r.nilai) : null,
+        catatan: r.catatan || '',
+        dikirimPada: r.dikirim_pada ? new Date(r.dikirim_pada).toISOString() : new Date().toISOString(),
+        dinilaiPada: r.dinilai_pada ? new Date(r.dinilai_pada).toISOString() : null,
+        versi: r.versi,
+        revisi: Boolean(r.revisi)
+      }));
+    }
+
+    const backupData = {
+      app: 'Portal KTI SMK Bina Rahayu',
+      versiSistem: '2.0.0',
+      tanggalEkspor: new Date().toISOString(),
+      waktuLokal: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) + ' WIB',
+      pengampu: 'Ibu Ulfa',
+      kelas: KELAS,
+      babDetail: getDaftarBabDetail(),
+      totalTugas: allTugas.length,
+      tugas: allTugas
+    };
+
+    const filename = `backup_kti_smk_binarahayu_${new Date().toISOString().slice(0, 10)}.json`;
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.status(200).json(backupData);
+  } catch (err) {
+    console.error('Error saat membuat backup:', err);
+    return res.status(500).json({ error: 'Gagal membuat cadangan data' });
+  }
+});
+
+// 6d. POST /api/reset (Reset / Bersihkan Data Tugas - Khusus Guru)
+app.post('/api/reset', async (req, res) => {
+  const session = getSession(req);
+  if (!session) {
+    return res.status(401).json({ error: 'Tidak diizinkan. Silakan masuk terlebih dahulu.' });
+  }
+  if (session.peran !== 'guru') {
+    return res.status(403).json({ error: 'Akses ditolak. Hanya guru yang dapat me-reset data tugas.' });
+  }
+
+  const { konfirmasi, password, scope = 'semua' } = req.body || {};
+
+  if (konfirmasi !== 'RESET') {
+    return res.status(400).json({ error: 'Ketik kata RESET dengan huruf besar untuk mengonfirmasi penghapusan data.' });
+  }
+
+  if (!password || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Kata sandi guru wajib diisi untuk verifikasi keamanan.' });
+  }
+
+  if (!verifyPassword(password, getPassword('guru'))) {
+    return res.status(400).json({ error: 'Kata sandi guru tidak sesuai.' });
+  }
+
+  if (scope !== 'semua' && scope !== 'XI-1' && scope !== 'XI-2') {
+    return res.status(400).json({ error: 'Pilihan cakupan kelas tidak valid.' });
+  }
+
+  try {
+    let deletedCount = 0;
+    if (isDbConnected()) {
+      const pool = getPool();
+      if (scope === 'semua') {
+        const [rows] = await pool.query('SELECT file_url FROM tugas');
+        for (const r of rows) {
+          deleteLocalFile(r.file_url);
+        }
+        deletedCount = rows.length;
+        await pool.query('DELETE FROM tugas');
+      } else {
+        const [rows] = await pool.query('SELECT file_url FROM tugas WHERE kelas = ?', [scope]);
+        for (const r of rows) {
+          deleteLocalFile(r.file_url);
+        }
+        deletedCount = rows.length;
+        await pool.query('DELETE FROM tugas WHERE kelas = ?', [scope]);
+      }
+    }
+
+    const scopeDesc = scope === 'semua' ? 'seluruh kelas (XI-1 & XI-2)' : `kelas ${scope}`;
+    return res.status(200).json({
+      success: true,
+      message: `Data tugas untuk ${scopeDesc} berhasil dibersihkan (${deletedCount} rekaman dihapus).`,
+      deletedCount
+    });
+  } catch (err) {
+    console.error('Error saat mereset data:', err);
+    return res.status(500).json({ error: err.message || 'Gagal membersihkan data tugas' });
+  }
+});
+
 // 7. GET /api/tugas (Guru & Pengawas)
 app.get('/api/tugas', async (req, res) => {
   const session = getSession(req);

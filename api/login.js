@@ -6,7 +6,8 @@ import {
   verifyPassword,
   createSessionToken,
   buildSessionCookie,
-  getPassword
+  getPassword,
+  syncPasswordsFromBlob
 } from './_auth.js';
 
 export default async function handler(req, res) {
@@ -39,7 +40,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Peran harus berupa "guru" atau "pengawas"' });
   }
 
-  // 3. Ambil kata sandi rahasia dari passwords.json atau environment variables
+  // 3. Ambil kata sandi rahasia dari passwords.json, Vercel Blob, atau environment variables
+  await syncPasswordsFromBlob();
   const expectedPassword = getPassword(peran);
 
   if (!expectedPassword) {

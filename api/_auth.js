@@ -81,10 +81,59 @@ export function savePassword(peran, newPassword) {
     }
     fs.writeFileSync(PASSWORDS_FILE, JSON.stringify(cachedPasswords, null, 2), 'utf8');
   } catch (e) {
-    console.warn('[Auth Warning] Gagal menyimpan kata sandi ke passwords.json:', e.message);
+    // Pada Vercel Serverless filesystem lokal read-only, abaikan error ini
+  }
+
+  // Jika token Vercel Blob tersedia, simpan juga ke Vercel Blob
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    try {
+      import('@vercel/blob').then(({ put }) => {
+        put('pengaturan/passwords.json', JSON.stringify(cachedPasswords), {
+          access: 'public',
+          contentType: 'application/json',
+          allowOverwrite: true,
+          addRandomSuffix: false,
+          cacheControlMaxAge: 0
+        }).catch(err => console.warn('[Blob Warning] Gagal menyimpan kata sandi ke Blob:', err.message));
+      }).catch(() => {});
+    } catch {}
   }
 
   return true;
+}
+
+/**
+ * Menyinkronkan kata sandi dari Vercel Blob jika token tersedia.
+ */
+export async function syncPasswordsFromBlob() {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return;
+  try {
+    const { list } = await import('@vercel/blob');
+    const res = await list({ prefix: 'pengaturan/passwords.json' });
+    const targetBlob = res.blobs?.find(b => b.pathname === 'pengaturan/passwords.json' || b.pathname.endsWith('passwords.json'));
+    if (targetBlob && targetBlob.url) {
+      const resp = await fetch(`${targetBlob.url}?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache, no-store' }
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data && typeof data === 'object') {
+          if (!cachedPasswords) cachedPasswords = loadPasswordsFromFile();
+          if (data.guru) {
+            cachedPasswords.guru = data.guru;
+            process.env.GURU_PASSWORD = data.guru;
+          }
+          if (data.pengawas) {
+            cachedPasswords.pengawas = data.pengawas;
+            process.env.PENGAWAS_PASSWORD = data.pengawas;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Blob Warning] Gagal membaca kata sandi dari Vercel Blob:', err.message);
+  }
 }
 
 /**

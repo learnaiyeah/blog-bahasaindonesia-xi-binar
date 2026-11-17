@@ -10,6 +10,8 @@ import tugasHandler from '../api/tugas.js';
 import hapusHandler from '../api/hapus.js';
 import babHandler from '../api/bab.js';
 import passwordHandler from '../api/password.js';
+import backupHandler from '../api/backup.js';
+import resetHandler from '../api/reset.js';
 import { resetLoginRateLimit, resetPasswordStore } from '../api/_auth.js';
 
 process.env.SESSION_SECRET = 'super_secret_session_key_for_testing_purposes_12345';
@@ -60,6 +62,8 @@ function createTestServer() {
       if (pathname === '/api/hapus') return await hapusHandler(req, res);
       if (pathname === '/api/bab') return await babHandler(req, res);
       if (pathname === '/api/password') return await passwordHandler(req, res);
+      if (pathname === '/api/backup') return await backupHandler(req, res);
+      if (pathname === '/api/reset') return await resetHandler(req, res);
 
       res.status(404).json({ error: 'Not found' });
     } catch (err) {
@@ -475,8 +479,67 @@ server.listen(0, async () => {
     });
     resetPasswordStore();
 
-    // 17. Uji POST /api/logout
-    console.log('17. Uji POST /api/logout...');
+    // 17. Uji GET /api/backup & POST /api/reset (Cadangkan dan Bersihkan Data Tugas)
+    console.log('17. Uji GET /api/backup dan POST /api/reset...');
+    // a. GET /api/backup tanpa login -> 401
+    const noAuthBackup = await fetch(`${baseUrl}/api/backup`);
+    assert.strictEqual(noAuthBackup.status, 401);
+
+    // b. GET /api/backup oleh Pengawas -> 403
+    const pengawasBackup = await fetch(`${baseUrl}/api/backup`, {
+      headers: { cookie: pengawasCookie }
+    });
+    assert.strictEqual(pengawasBackup.status, 403);
+
+    // c. GET /api/backup oleh Guru -> 200
+    const guruBackup = await fetch(`${baseUrl}/api/backup`, {
+      headers: { cookie: guruCookie }
+    });
+    assert.strictEqual(guruBackup.status, 200);
+    const backupJson = await guruBackup.json();
+    assert.strictEqual(backupJson.app, 'Portal KTI SMK Bina Rahayu');
+    assert.ok(Array.isArray(backupJson.babDetail));
+
+    // d. POST /api/reset tanpa login -> 401
+    const noAuthReset = await fetch(`${baseUrl}/api/reset`, { method: 'POST' });
+    assert.strictEqual(noAuthReset.status, 401);
+
+    // e. POST /api/reset oleh Pengawas -> 403
+    const pengawasReset = await fetch(`${baseUrl}/api/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: pengawasCookie },
+      body: JSON.stringify({ konfirmasi: 'RESET', password: 'passwordPengawas456' })
+    });
+    assert.strictEqual(pengawasReset.status, 403);
+
+    // f. POST /api/reset oleh Guru dengan kata konfirmasi salah -> 400
+    const wrongWordReset = await fetch(`${baseUrl}/api/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: guruCookie },
+      body: JSON.stringify({ konfirmasi: 'salah', password: 'passwordGuru123' })
+    });
+    assert.strictEqual(wrongWordReset.status, 400);
+
+    // g. POST /api/reset oleh Guru dengan password salah -> 400
+    const wrongPassReset = await fetch(`${baseUrl}/api/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: guruCookie },
+      body: JSON.stringify({ konfirmasi: 'RESET', password: 'passwordSalah' })
+    });
+    assert.strictEqual(wrongPassReset.status, 400);
+
+    // h. POST /api/reset oleh Guru berhasil -> 200
+    const validReset = await fetch(`${baseUrl}/api/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: guruCookie },
+      body: JSON.stringify({ konfirmasi: 'RESET', password: 'passwordGuru123', scope: 'semua' })
+    });
+    assert.strictEqual(validReset.status, 200);
+    const validResetData = await validReset.json();
+    assert.strictEqual(validResetData.success, true);
+
+    // 18. Uji POST /api/logout
+    console.log('18. Uji POST /api/logout...');
     const logoutRes = await fetch(`${baseUrl}/api/logout`, { method: 'POST' });
     assert.strictEqual(logoutRes.status, 200);
     const logoutCookie = logoutRes.headers.get('set-cookie');

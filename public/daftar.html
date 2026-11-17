@@ -136,6 +136,21 @@
           </svg>
           <span>Atur Bab KTI</span>
         </button>
+        <button type="button" id="btn-backup-data" class="btn btn-secondary" style="min-height: 38px; padding: 0.375rem 0.75rem; font-size: 0.8125rem; display: none;" title="Cadangkan seluruh data tugas ke file JSON">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Cadangkan</span>
+        </button>
+        <button type="button" id="btn-reset-data" class="btn btn-danger-outline" style="min-height: 38px; padding: 0.375rem 0.75rem; font-size: 0.8125rem; display: none;" title="Bersihkan / Reset data tugas">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+          <span>Reset Data</span>
+        </button>
         <button type="button" id="btn-ubah-password" class="btn btn-secondary" style="min-height: 38px; padding: 0.375rem 0.75rem; font-size: 0.8125rem;" title="Ubah kata sandi akun">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -414,6 +429,59 @@
     </div>
   </div>
 
+  <!-- Modal Reset Data Tugas (Khusus Guru) -->
+  <div class="modal-backdrop" id="modal-reset-data" role="dialog" aria-modal="true" aria-labelledby="modal-reset-data-title">
+    <div class="modal-content" style="max-width: 490px; height: auto; max-height: 90vh;">
+      <div class="modal-header" style="border-bottom-color: var(--danger-border); background-color: var(--danger-bg);">
+        <div>
+          <h2 id="modal-reset-data-title" style="font-size: 1.15rem; margin-bottom: 0.2rem; color: var(--danger-text);">Reset / Bersihkan Data Tugas</h2>
+          <span class="text-muted" style="font-size: 0.8125rem;">Hapus seluruh atau sebagian data tugas siswa</span>
+        </div>
+        <button type="button" id="btn-close-reset-data" class="btn btn-secondary" style="min-height: 36px; padding: 0.35rem 0.65rem;" aria-label="Tutup Panel">
+          &times;
+        </button>
+      </div>
+
+      <form id="form-reset-data" style="display: flex; flex-direction: column; flex: 1;">
+        <div style="padding: 1.25rem; overflow-y: auto; flex: 1;">
+          <div id="alert-reset-data" class="alert" role="alert" style="display: none; margin-bottom: 1rem;"></div>
+
+          <div style="background-color: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger-text); padding: 0.75rem 1rem; border-radius: var(--radius-md); font-size: 0.825rem; line-height: 1.45; margin-bottom: 1.25rem;">
+            <strong>⚠️ Peringatan Penting:</strong> Tindakan ini akan menghapus rekaman tugas, nilai, dan file tugas siswa secara permanen. Pastikan Anda sudah mengklik tombol <strong>Cadangkan</strong> terlebih dahulu untuk menyimpan arsip data.
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1rem;">
+            <label for="select-reset-scope" style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.375rem;">Pilih Cakupan Data yang Dihapus:</label>
+            <select id="select-reset-scope" class="form-control" style="width: 100%;">
+              <option value="semua">Semua Kelas (XI-1 & XI-2) — Hapus Seluruh Tugas</option>
+              <option value="XI-1">Hanya Kelas XI-1</option>
+              <option value="XI-2">Hanya Kelas XI-2</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1rem;">
+            <label for="input-reset-konfirmasi" style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.375rem;">Ketik kata <strong>RESET</strong> untuk konfirmasi:</label>
+            <input type="text" id="input-reset-konfirmasi" class="form-control" placeholder="Ketik kata RESET" required autocomplete="off" style="width: 100%;">
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0.5rem;">
+            <label for="input-reset-password" style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.375rem;">Kata Sandi Guru Saat Ini:</label>
+            <input type="password" id="input-reset-password" class="form-control" placeholder="Masukkan kata sandi guru" required autocomplete="current-password" style="width: 100%;">
+          </div>
+        </div>
+
+        <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--border-color); background-color: var(--bg-subtle); display: flex; justify-content: flex-end; gap: 0.75rem; flex-shrink: 0;">
+          <button type="button" id="btn-batal-reset-data" class="btn btn-secondary" style="min-height: 38px;">
+            Batal
+          </button>
+          <button type="submit" id="btn-submit-reset-data" class="btn btn-danger" style="min-height: 38px;">
+            Hapus &amp; Reset Data
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script type="module">
     import { formatTanggal, formatWaktuRelatif, createSafeElement, cekStatusDeadline } from '/app.js';
 
@@ -481,6 +549,21 @@
     const inputKonfirmasiPassword = document.getElementById('input-konfirmasi-password');
     const modalUbahPasswordSubtitle = document.getElementById('modal-ubah-password-subtitle');
 
+    // Fitur Cadangkan (Backup) & Reset Data
+    const btnBackupData = document.getElementById('btn-backup-data');
+    const btnResetData = document.getElementById('btn-reset-data');
+
+    // Modal Elemen Reset Data
+    const modalResetData = document.getElementById('modal-reset-data');
+    const btnCloseResetData = document.getElementById('btn-close-reset-data');
+    const btnBatalResetData = document.getElementById('btn-batal-reset-data');
+    const btnSubmitResetData = document.getElementById('btn-submit-reset-data');
+    const formResetData = document.getElementById('form-reset-data');
+    const alertResetData = document.getElementById('alert-reset-data');
+    const selectResetScope = document.getElementById('select-reset-scope');
+    const inputResetKonfirmasi = document.getElementById('input-reset-konfirmasi');
+    const inputResetPassword = document.getElementById('input-reset-password');
+
     let currentBabList = [];
     let currentBabDetailList = [];
 
@@ -519,11 +602,16 @@
           badgeRole.className = 'badge badge-guru';
           badgeRole.textContent = 'Ibu Ulfa (Guru Pengampu)';
           if (btnKelolaBab) btnKelolaBab.style.display = 'inline-flex';
+          if (btnBackupData) btnBackupData.style.display = 'inline-flex';
+          if (btnResetData) btnResetData.style.display = 'inline-flex';
         } else if (currentRole === 'pengawas') {
           badgeRole.className = 'badge badge-pengawas';
           badgeRole.textContent = 'Pengawas Sekolah';
           if (btnKelolaBab) btnKelolaBab.remove();
           if (modalKelolaBab) modalKelolaBab.remove();
+          if (btnBackupData) btnBackupData.remove();
+          if (btnResetData) btnResetData.remove();
+          if (modalResetData) modalResetData.remove();
         }
         updateTableHeader();
 
@@ -1588,7 +1676,9 @@
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        if (modalUbahPassword && modalUbahPassword.style.display === 'flex') {
+        if (modalResetData && modalResetData.style.display === 'flex') {
+          closeResetDataModal();
+        } else if (modalUbahPassword && modalUbahPassword.style.display === 'flex') {
           closeUbahPasswordModal();
         } else if (modalKelolaBab && modalKelolaBab.style.display === 'flex') {
           closeKelolaBabModal();
@@ -2013,6 +2103,123 @@
           if (btnSimpanUbahPassword) {
             btnSimpanUbahPassword.disabled = false;
             btnSimpanUbahPassword.textContent = 'Simpan Kata Sandi';
+          }
+        }
+      });
+    }
+
+    // 6e. Fitur Cadangkan Data (Backup) & Reset Data (Khusus Guru)
+    if (btnBackupData) {
+      btnBackupData.addEventListener('click', () => {
+        window.location.href = '/api/backup';
+      });
+    }
+
+    function showResetDataAlert(msg, type = 'danger') {
+      if (!alertResetData) return;
+      alertResetData.className = `alert alert-${type}`;
+      alertResetData.textContent = msg;
+      alertResetData.style.display = 'block';
+    }
+
+    function hideResetDataAlert() {
+      if (!alertResetData) return;
+      alertResetData.textContent = '';
+      alertResetData.style.display = 'none';
+    }
+
+    function openResetDataModal() {
+      if (!modalResetData) return;
+      hideResetDataAlert();
+      if (formResetData) formResetData.reset();
+      modalResetData.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => {
+        if (inputResetKonfirmasi) inputResetKonfirmasi.focus();
+      }, 50);
+    }
+
+    function closeResetDataModal() {
+      if (!modalResetData) return;
+      modalResetData.style.display = 'none';
+      document.body.style.overflow = '';
+      hideResetDataAlert();
+      if (formResetData) formResetData.reset();
+    }
+
+    if (btnResetData) {
+      btnResetData.addEventListener('click', openResetDataModal);
+    }
+    if (btnCloseResetData) {
+      btnCloseResetData.addEventListener('click', closeResetDataModal);
+    }
+    if (btnBatalResetData) {
+      btnBatalResetData.addEventListener('click', closeResetDataModal);
+    }
+    if (modalResetData) {
+      modalResetData.addEventListener('click', (e) => {
+        if (e.target === modalResetData) {
+          closeResetDataModal();
+        }
+      });
+    }
+
+    if (formResetData) {
+      formResetData.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideResetDataAlert();
+
+        const scope = selectResetScope ? selectResetScope.value : 'semua';
+        const konfirmasi = inputResetKonfirmasi ? inputResetKonfirmasi.value.trim() : '';
+        const password = inputResetPassword ? inputResetPassword.value : '';
+
+        if (konfirmasi !== 'RESET') {
+          showResetDataAlert('Ketik kata RESET dengan huruf besar untuk mengonfirmasi.');
+          if (inputResetKonfirmasi) inputResetKonfirmasi.focus();
+          return;
+        }
+
+        if (!password) {
+          showResetDataAlert('Kata sandi guru wajib diisi.');
+          if (inputResetPassword) inputResetPassword.focus();
+          return;
+        }
+
+        if (btnSubmitResetData) {
+          btnSubmitResetData.disabled = true;
+          btnSubmitResetData.textContent = 'Membersihkan...';
+        }
+
+        try {
+          const resp = await fetch('/api/reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scope, konfirmasi, password })
+          });
+
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) {
+            throw new Error(data.error || 'Gagal mereset data tugas');
+          }
+
+          showResetDataAlert(data.message || 'Data tugas berhasil dibersihkan!', 'success');
+          if (formResetData) formResetData.reset();
+
+          // Muat ulang data tugas di tabel
+          await loadTugas();
+
+          setTimeout(() => {
+            closeResetDataModal();
+            if (btnSubmitResetData) {
+              btnSubmitResetData.disabled = false;
+              btnSubmitResetData.textContent = 'Hapus & Reset Data';
+            }
+          }, 1200);
+        } catch (err) {
+          showResetDataAlert(err.message || 'Terjadi kesalahan saat mereset data.');
+          if (btnSubmitResetData) {
+            btnSubmitResetData.disabled = false;
+            btnSubmitResetData.textContent = 'Hapus & Reset Data';
           }
         }
       });

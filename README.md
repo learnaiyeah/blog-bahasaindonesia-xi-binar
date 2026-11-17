@@ -34,6 +34,7 @@ Repositori Resmi GitHub: [https://github.com/learnaiyeah/blog-bahasaindonesia-xi
   - **Fallback Storage**: `database/bab.json` & `database/passwords.json` untuk redundansi data saat dijalankan tanpa server database terpisah.
 - **Frontend & Antarmuka Pengguna (UI/UX)**:
   - Desain antarmuka modern bernuansa akademis dengan identitas SMK Bina Rahayu (logo sekolah, navigasi bersih, dan tipografi rapi).
+  - **Dynamic Island Floating Navbar**: Bilah navigasi melayang berbentuk kapsul elegan terinspirasi Apple Dynamic Island dengan latar gelap obsidian (`dark slate glassmorphism`), bayangan melayang (*floating shadow*), logo melingkar, serta penataan tombol aksi yang terpadu dan estetik.
   - **Tata Letak Adaptif Responsif**:
     - **Layar Desktop / Laptop**: Mengoptimalkan layar lebar (*landscape*) dengan sistem *split-screen*: sisi kiri menampilkan dokumen naskah secara penuh dan sisi kanan menampilkan formulir penilaian & riwayat versi.
     - **Layar Mobile / Smartphone**: Mengoptimalkan ruang vertikal (*portrait*) secara efisien dengan *Tab Switcher* (`📄 Naskah Siswa` vs `📝 Penilaian & Riwayat`) serta kartu ringkas yang nyaman disentuh.
@@ -287,8 +288,15 @@ Proses pembaruan selesai dalam hitungan detik tanpa memutus koneksi database ata
 
 Jika sekolah ingin alternatif hosting *cloud serverless* gratis tanpa memelihara server fisik, aplikasi ini juga 100% kompatibel dengan Vercel:
 
+### Bagaimana Vercel Menjadi Database?
+Pada mode Vercel, sistem memanfaatkan **Vercel Blob Storage** sebagai basis data cloud terpadu:
+- Berkas dokumen fisik disimpan di path `file/{id}/{namaFileAman}`.
+- Metadata tugas (nilai, catatan, riwayat versi) disimpan di path `tugas/{kelas}/{bab}/{kunciNama}/{id}.json`.
+- Pengaturan bab & batas waktu pengumpulan disimpan di `pengaturan/bab.json`.
+- Kata sandi Guru dan Pengawas yang diubah dinamis disimpan di `pengaturan/passwords.json`.
+
 ### 1. Unggah ke Repositori GitHub
-Pastikan kode terbaru sudah terunggah ke repositori GitHub Anda.
+Pastikan seluruh kode terbaru sudah di-commit dan di-push ke repositori GitHub Anda.
 
 ### 2. Hubungkan Proyek ke Vercel
 1. Buka [Dashboard Vercel](https://vercel.com/dashboard).
@@ -306,8 +314,8 @@ Buka menu **Settings** > **Environment Variables** pada dashboard Vercel, lalu t
 
 | Nama Variabel | Nilai Contoh | Keterangan |
 | :--- | :--- | :--- |
-| `GURU_PASSWORD` | `guru123` | Kata sandi masuk Guru |
-| `PENGAWAS_PASSWORD` | `pengawas123` | Kata sandi masuk Pengawas |
+| `GURU_PASSWORD` | `ulfahayati` (atau `guru123`) | Kata sandi masuk Guru awal |
+| `PENGAWAS_PASSWORD` | `pengawas123` | Kata sandi masuk Pengawas awal |
 | `SESSION_SECRET` | *(string acak minimal 32 karakter)* | Kunci HMAC sesi cookie |
 
 *Untuk membuat `SESSION_SECRET` acak, jalankan di terminal laptop:*
@@ -319,7 +327,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 Setelah menambahkan variabel lingkungan:
 1. Buka tab **Deployments** di Vercel.
 2. Klik tombol opsi (`...`) pada deployment terbaru, lalu pilih **Redeploy**.
-3. Sistem cloud siap digunakan!
+3. Sistem cloud siap digunakan dan langsung aktif online!
 
 ---
 
@@ -339,8 +347,10 @@ Setelah menambahkan variabel lingkungan:
 - **Penilaian & Catatan Guru**: Memberikan nilai angka (0 - 100) dan catatan evaluasi/arahan revisi yang dapat dibaca siswa.
 - **Manajemen Bab & Batas Waktu**: Tombol **"Atur Bab KTI"** memungkinkan guru mengatur jumlah bab, mengubah judul bab, serta mengaktifkan/menonaktifkan tanggal & jam deadline per bab.
 - **Status Keterlambatan Otomatis**: Naskah yang dikirim melewati batas waktu akan ditandai badge **"⏱ Terlambat (x jam)"**, sedangkan yang tepat waktu bertanda **"✓ Tepat Waktu"**.
+- **Cadangkan Data (Backup 1-Klik)**: Tombol **"Cadangkan"** untuk mengunduh seluruh arsip data tugas, riwayat revisi, nilai, dan catatan guru ke dalam berkas JSON mandiri untuk keperluan migrasi atau arsip sekolah.
+- **Reset / Bersihkan Data Tugas**: Tombol **"Reset Data"** dengan proteksi ganda (konfirmasi teks `"RESET"` dan verifikasi kata sandi guru) untuk membersihkan seluruh data tugas atau per kelas tertentu.
 - **Penghapusan Tugas & Siswa**: Guru dapat menghapus versi tugas tertentu atau menghapus seluruh data siswa jika diperlukan.
-- **Ubah Kata Sandi Mandiri**: Guru dapat mengubah kata sandi masuk secara mandiri melalui tombol **"Ubah Sandi"** di header aplikasi.
+- **Ubah Kata Sandi Mandiri**: Guru dapat mengubah kata sandi masuk secara mandiri melalui tombol **"Ubah Sandi"** di header aplikasi dan tersimpan persisten.
 
 ### 3. Peran Pengawas (Pemantauan Mutu Pendidikan)
 - **Halaman**: `/masuk?peran=pengawas` -> diarahkan ke `/daftar`
