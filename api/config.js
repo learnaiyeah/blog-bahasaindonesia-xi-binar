@@ -1,6 +1,6 @@
-import { KELAS, BAB, getDaftarBabDetail } from './_config.js';
+import { KELAS, getDaftarBab, getDaftarBabDetail, syncBabFromBlob } from './_config.js';
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Metode tidak diizinkan' });
@@ -10,10 +10,13 @@ export default function handler(req, res) {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
 
+  // Sinkronkan daftar bab persisten dari Vercel Blob jika token aktif
+  await syncBabFromBlob();
+
   // Mengembalikan daftar kelas dan bab yang aktif beserta konfigurasi deadline
   return res.status(200).json({
     kelas: KELAS,
-    bab: BAB,
+    bab: getDaftarBab(),
     babDetail: getDaftarBabDetail()
   });
 }

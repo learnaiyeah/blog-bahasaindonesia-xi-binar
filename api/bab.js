@@ -1,5 +1,5 @@
 import { getSession } from './_auth.js';
-import { getDaftarBab, getDaftarBabDetail, saveDaftarBab } from './_config.js';
+import { getDaftarBab, getDaftarBabDetail, saveDaftarBab, syncBabFromBlob } from './_config.js';
 
 /**
  * Endpoint Pengaturan Bab KTI & Deadline
@@ -9,6 +9,9 @@ import { getDaftarBab, getDaftarBabDetail, saveDaftarBab } from './_config.js';
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    await syncBabFromBlob();
     return res.status(200).json({
       bab: getDaftarBab(),
       babDetail: getDaftarBabDetail()
@@ -29,6 +32,9 @@ export default async function handler(req, res) {
   if (session.peran !== 'guru') {
     return res.status(403).json({ error: 'Hanya peran Guru yang berhak mengatur bab tugas.' });
   }
+
+  // Sinkronkan bab terkini dari storage sebelum memproses pembaruan
+  await syncBabFromBlob();
 
   // 2. Validasi Body (bisa berupa array of string atau array of objects)
   const inputList = req.body?.bab || req.body?.babDetail;
@@ -81,7 +87,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const updated = saveDaftarBab(cleanItems);
+    const updated = await saveDaftarBab(cleanItems);
     return res.status(200).json({
       success: true,
       message: 'Pengaturan bab dan deadline berhasil disimpan',

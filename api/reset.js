@@ -1,4 +1,4 @@
-import { getSession, getPassword, verifyPassword } from './_auth.js';
+import { getSession, getPassword, verifyPassword, syncPasswordsFromBlob } from './_auth.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -36,6 +36,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Kata sandi guru wajib diisi untuk verifikasi keamanan.' });
   }
 
+  await syncPasswordsFromBlob();
   const currentGuruPassword = getPassword('guru');
   if (!verifyPassword(password, currentGuruPassword)) {
     return res.status(400).json({ error: 'Kata sandi guru tidak sesuai.' });

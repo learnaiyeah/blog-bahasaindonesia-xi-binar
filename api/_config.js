@@ -14,30 +14,45 @@ export const KELAS = ['XI-1', 'XI-2'];
 
 const DEFAULT_BAB = ['Bab 1', 'Bab 2'];
 
+let cachedBabDetail = null;
+
 /**
- * Mengambil daftar bab lengkap beserta konfigurasi deadline.
- * Mendukung format string lama ['Bab 1', 'Bab 2'] maupun objek baru.
+ * Normalisasi format data bab (baik array string maupun array objek)
+ * @param {Array<string|{ judul: string, deadlineAktif?: boolean, deadline?: string|null }>} list
  * @returns {Array<{ judul: string, deadlineAktif: boolean, deadline: string|null }>}
  */
-export function getDaftarBabDetail() {
+export function normalizeBabList(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map(item => {
+    if (typeof item === 'string') {
+      const trimmed = item.trim();
+      return trimmed ? {
+        judul: trimmed,
+        deadlineAktif: false,
+        deadline: null
+      } : null;
+    }
+    if (item && typeof item === 'object') {
+      const judul = String(item.judul || '').trim();
+      if (!judul) return null;
+      const deadlineAktif = Boolean(item.deadlineAktif);
+      return {
+        judul,
+        deadlineAktif,
+        deadline: (deadlineAktif && item.deadline) ? String(item.deadline).trim() : null
+      };
+    }
+    return null;
+  }).filter(Boolean);
+}
+
+function loadBabFromFile() {
   try {
     if (fs.existsSync(BAB_FILE)) {
       const data = JSON.parse(fs.readFileSync(BAB_FILE, 'utf8'));
       if (Array.isArray(data) && data.length > 0) {
-        return data.map(item => {
-          if (typeof item === 'string') {
-            return {
-              judul: item.trim(),
-              deadlineAktif: false,
-              deadline: null
-            };
-          }
-          return {
-            judul: (item.judul || '').trim(),
-            deadlineAktif: Boolean(item.deadlineAktif),
-            deadline: (item.deadlineAktif && item.deadline) ? String(item.deadline).trim() : null
-          };
-        }).filter(b => b.judul.length > 0);
+        const normalized = normalizeBabList(data);
+        if (normalized.length > 0) return normalized;
       }
     }
   } catch (err) {
@@ -51,6 +66,18 @@ export function getDaftarBabDetail() {
 }
 
 /**
+ * Mengambil daftar bab lengkap beserta konfigurasi deadline.
+ * Mendukung format string lama ['Bab 1', 'Bab 2'] maupun objek baru.
+ * @returns {Array<{ judul: string, deadlineAktif: boolean, deadline: string|null }>}
+ */
+export function getDaftarBabDetail() {
+  if (!cachedBabDetail || cachedBabDetail.length === 0) {
+    cachedBabDetail = loadBabFromFile();
+  }
+  return cachedBabDetail.map(b => ({ ...b }));
+}
+
+/**
  * Mengambil hanya daftar judul bab (array of strings) untuk kompatibilitas penuh.
  * @returns {string[]}
  */
@@ -59,12 +86,50 @@ export function getDaftarBab() {
 }
 
 /**
- * Menyimpan konfigurasi bab dan deadline ke database/bab.json.
+ * Menyinkronkan daftar bab dari Vercel Blob jika token tersedia.
+ */
+export async function syncBabFromBlob() {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
+  try {
+    const { list } = await import('@vercel/blob');
+    const res = await list({ prefix: 'pengaturan/bab.json' });
+    const targetBlob = res.blobs?.find(b => b.pathname === 'pengaturan/bab.json' || b.pathname.endsWith('bab.json'));
+    if (targetBlob && targetBlob.url) {
+      const cacheBustUrl = `${targetBlob.url}?t=${Date.now()}_${Math.random()}`;
+      const resp = await fetch(cacheBustUrl, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const normalized = normalizeBabList(data);
+          if (normalized.length > 0) {
+            cachedBabDetail = normalized;
+            const cleanTitles = normalized.map(b => b.judul);
+            BAB.length = 0;
+            BAB.push(...cleanTitles);
+            return normalized;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Blob Warning] Gagal membaca pengaturan bab dari Vercel Blob:', err.message);
+  }
+  return null;
+}
+
+/**
+ * Menyimpan konfigurasi bab dan deadline ke database/bab.json dan Vercel Blob.
  * Menerima array of strings maupun array of objects.
  * @param {Array<string|{ judul: string, deadlineAktif?: boolean, deadline?: string|null }>} list
- * @returns {string[]} Daftar judul bab yang tersimpan
+ * @returns {Promise<string[]>} Daftar judul bab yang tersimpan
  */
-export function saveDaftarBab(list) {
+export async function saveDaftarBab(list) {
   if (!Array.isArray(list) || list.length === 0) {
     throw new Error('Daftar bab tidak boleh kosong');
   }
@@ -103,7 +168,15 @@ export function saveDaftarBab(list) {
     throw new Error('Daftar bab tidak boleh kosong');
   }
 
-  // Tulis ke file JSON lokal agar persisten
+  // Perbarui cache memori lokal
+  cachedBabDetail = cleanDetail.map(b => ({ ...b }));
+
+  // Mutasi array BAB yang diekspor agar semua modul langsung mendapat pembaruan
+  const cleanTitles = cleanDetail.map(b => b.judul);
+  BAB.length = 0;
+  BAB.push(...cleanTitles);
+
+  // Tulis ke file JSON lokal jika memungkinkan
   try {
     const dir = path.dirname(BAB_FILE);
     if (!fs.existsSync(dir)) {
@@ -111,15 +184,35 @@ export function saveDaftarBab(list) {
     }
     fs.writeFileSync(BAB_FILE, JSON.stringify(cleanDetail, null, 2), 'utf8');
   } catch (err) {
-    console.error('Gagal menulis database/bab.json:', err.message);
+    // Pada filesystem read-only (Vercel), abaikan error ini
   }
 
-  // Mutasi array BAB yang diekspor agar semua modul langsung mendapat pembaruan
-  const cleanTitles = cleanDetail.map(b => b.judul);
-  BAB.length = 0;
-  BAB.push(...cleanTitles);
+  // Jika token Vercel Blob tersedia, simpan juga ke Vercel Blob
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    try {
+      const { put } = await import('@vercel/blob');
+      await put('pengaturan/bab.json', JSON.stringify(cleanDetail, null, 2), {
+        access: 'public',
+        contentType: 'application/json',
+        allowOverwrite: true,
+        addRandomSuffix: false,
+        cacheControlMaxAge: 0
+      });
+    } catch (err) {
+      console.warn('[Blob Warning] Gagal menyimpan pengaturan bab ke Vercel Blob:', err.message);
+    }
+  }
 
   return cleanTitles;
+}
+
+/**
+ * Mereset store bab ke kondisi awal (untuk unit test)
+ */
+export function resetBabStore() {
+  cachedBabDetail = null;
+  BAB.length = 0;
+  BAB.push(...getDaftarBab());
 }
 
 export const BAB = getDaftarBab();

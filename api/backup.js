@@ -1,5 +1,5 @@
 import { getSession } from './_auth.js';
-import { getDaftarBabDetail, KELAS } from './_config.js';
+import { getDaftarBabDetail, KELAS, syncBabFromBlob } from './_config.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -52,6 +52,8 @@ export default async function handler(req, res) {
       const results = await Promise.all(fetchPromises);
       allTugas = results.filter(Boolean);
     }
+
+    await syncBabFromBlob();
 
     const backupData = {
       app: 'Portal KTI SMK Bina Rahayu',

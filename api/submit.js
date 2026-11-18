@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { put, list } from '@vercel/blob';
-import { KELAS, BAB, getDaftarBab, MAX_NAMA_LENGTH, MAX_CATATAN_SISWA_LENGTH, ALLOWED_CONTENT_TYPES } from './_config.js';
+import { KELAS, BAB, getDaftarBab, syncBabFromBlob, MAX_NAMA_LENGTH, MAX_CATATAN_SISWA_LENGTH, ALLOWED_CONTENT_TYPES } from './_config.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -64,7 +64,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Pilihan kelas tidak valid' });
   }
 
-  // 3. Validasi Bab
+  // 3. Validasi Bab (sinkronkan bab terbaru dari Blob terlebih dahulu)
+  await syncBabFromBlob();
   if (!getDaftarBab().includes(bab)) {
     return res.status(400).json({ error: 'Pilihan bab tidak valid' });
   }
@@ -154,6 +155,7 @@ export default async function handler(req, res) {
       access: 'public',
       contentType: 'application/json',
       addRandomSuffix: false,
+      allowOverwrite: true,
       cacheControlMaxAge: 0
     });
 

@@ -10,6 +10,10 @@ import nilaiHandler from '../api/nilai.js';
 import tugasHandler from '../api/tugas.js';
 import uploadHandler from '../api/upload.js';
 import hapusHandler from '../api/hapus.js';
+import babHandler from '../api/bab.js';
+import passwordHandler from '../api/password.js';
+import backupHandler from '../api/backup.js';
+import resetHandler from '../api/reset.js';
 import { getSession } from '../api/_auth.js';
 
 // Default env variables untuk local testing jika belum ada
@@ -382,6 +386,10 @@ const server = http.createServer(async (req, res) => {
       if (pathname === '/api/tugas') return await tugasHandler(req, res);
       if (pathname === '/api/upload') return await uploadHandler(req, res);
       if (pathname === '/api/hapus') return await hapusHandler(req, res);
+      if (pathname === '/api/bab') return await babHandler(req, res);
+      if (pathname === '/api/password') return await passwordHandler(req, res);
+      if (pathname === '/api/backup') return await backupHandler(req, res);
+      if (pathname === '/api/reset') return await resetHandler(req, res);
 
       return res.status(404).json({ error: 'API route not found' });
     } catch (err) {

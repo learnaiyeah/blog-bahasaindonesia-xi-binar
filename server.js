@@ -199,7 +199,7 @@ app.post('/api/bab', async (req, res) => {
   }
 
   try {
-    const updated = saveDaftarBab(cleanItems);
+    const updated = await saveDaftarBab(cleanItems);
     const detail = getDaftarBabDetail();
 
     // Simpan ke MySQL jika terhubung
@@ -443,7 +443,7 @@ app.post('/api/password', async (req, res) => {
   }
 
   try {
-    savePassword(peran, passwordBaru);
+    await savePassword(peran, passwordBaru);
 
     // Simpan ke MySQL jika terhubung
     if (isDbConnected()) {

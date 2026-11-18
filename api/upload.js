@@ -66,7 +66,8 @@ export default async function handler(req, res) {
       const blobResult = await put(targetPath, file.buffer, {
         access: 'public',
         contentType: file.mimetype,
-        addRandomSuffix: false
+        addRandomSuffix: false,
+        allowOverwrite: true
       });
 
       return res.status(200).json({

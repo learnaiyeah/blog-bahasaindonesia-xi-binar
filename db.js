@@ -90,7 +90,7 @@ export async function initDatabase() {
       if (rows && rows.length > 0 && rows[0].nilai) {
         const savedBab = JSON.parse(rows[0].nilai);
         if (Array.isArray(savedBab) && savedBab.length > 0) {
-          saveDaftarBab(savedBab);
+          await saveDaftarBab(savedBab);
         }
       } else {
         // Simpan default ke DB

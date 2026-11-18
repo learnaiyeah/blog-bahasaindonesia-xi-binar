@@ -1,4 +1,4 @@
-import { getSession, getPassword, savePassword, verifyPassword } from './_auth.js';
+import { getSession, getPassword, savePassword, verifyPassword, syncPasswordsFromBlob } from './_auth.js';
 
 /**
  * Endpoint Ubah Kata Sandi (Guru dan Pengawas)
@@ -59,7 +59,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Kata sandi baru tidak boleh sama dengan kata sandi lama.' });
   }
 
-  // 4. Verifikasi Kata Sandi Lama
+  // 4. Verifikasi Kata Sandi Lama (sinkronkan dari Blob jika ada)
+  await syncPasswordsFromBlob();
   const currentPassword = getPassword(peran);
   if (!verifyPassword(passwordLama, currentPassword)) {
     return res.status(400).json({ error: 'Kata sandi saat ini (lama) tidak sesuai.' });
@@ -67,7 +68,7 @@ export default async function handler(req, res) {
 
   // 5. Simpan Kata Sandi Baru
   try {
-    savePassword(peran, passwordBaru);
+    await savePassword(peran, passwordBaru);
     const labelPeran = peran === 'guru' ? 'Guru' : 'Pengawas';
     return res.status(200).json({
       success: true,

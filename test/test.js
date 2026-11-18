@@ -140,13 +140,22 @@ const initialDetail = getDaftarBabDetail();
 assert.ok(Array.isArray(initialDetail) && initialDetail.length > 0);
 assert.ok('judul' in initialDetail[0] && 'deadlineAktif' in initialDetail[0]);
 
+// e. Uji saveDaftarBab dan normalisasi bab
+const savedTitles = await saveDaftarBab(['Bab 1: Pendahuluan', { judul: 'Bab 2: Pembahasan', deadlineAktif: true, deadline: '2026-12-01T23:59' }]);
+assert.deepStrictEqual(savedTitles, ['Bab 1: Pendahuluan', 'Bab 2: Pembahasan']);
+const updatedDetail = getDaftarBabDetail();
+assert.strictEqual(updatedDetail.length, 2);
+assert.strictEqual(updatedDetail[0].judul, 'Bab 1: Pendahuluan');
+assert.strictEqual(updatedDetail[1].deadlineAktif, true);
+await saveDaftarBab(['Bab 1', 'Bab 2']);
+
 // 9. Uji getPassword dan savePassword
 console.log('9. Menguji pengambilan dan penyimpanan kata sandi...');
 assert.strictEqual(getPassword('guru'), 'guruPassword123');
 assert.strictEqual(getPassword('pengawas'), 'pengawasPassword456');
 assert.strictEqual(getPassword('siswa'), null);
 
-savePassword('guru', 'guruNewPassword789');
+await savePassword('guru', 'guruNewPassword789');
 assert.strictEqual(getPassword('guru'), 'guruNewPassword789');
 assert.strictEqual(process.env.GURU_PASSWORD, 'guruNewPassword789');
 

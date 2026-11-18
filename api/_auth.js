@@ -52,7 +52,7 @@ export function getPassword(peran) {
  * @param {string} newPassword
  * @returns {boolean}
  */
-export function savePassword(peran, newPassword) {
+export async function savePassword(peran, newPassword) {
   if (peran !== 'guru' && peran !== 'pengawas') {
     throw new Error('Peran tidak valid. Harus guru atau pengawas.');
   }
@@ -87,16 +87,17 @@ export function savePassword(peran, newPassword) {
   // Jika token Vercel Blob tersedia, simpan juga ke Vercel Blob
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     try {
-      import('@vercel/blob').then(({ put }) => {
-        put('pengaturan/passwords.json', JSON.stringify(cachedPasswords), {
-          access: 'public',
-          contentType: 'application/json',
-          allowOverwrite: true,
-          addRandomSuffix: false,
-          cacheControlMaxAge: 0
-        }).catch(err => console.warn('[Blob Warning] Gagal menyimpan kata sandi ke Blob:', err.message));
-      }).catch(() => {});
-    } catch {}
+      const { put } = await import('@vercel/blob');
+      await put('pengaturan/passwords.json', JSON.stringify(cachedPasswords), {
+        access: 'public',
+        contentType: 'application/json',
+        allowOverwrite: true,
+        addRandomSuffix: false,
+        cacheControlMaxAge: 0
+      });
+    } catch (err) {
+      console.warn('[Blob Warning] Gagal menyimpan kata sandi ke Blob:', err.message);
+    }
   }
 
   return true;
@@ -112,9 +113,13 @@ export async function syncPasswordsFromBlob() {
     const res = await list({ prefix: 'pengaturan/passwords.json' });
     const targetBlob = res.blobs?.find(b => b.pathname === 'pengaturan/passwords.json' || b.pathname.endsWith('passwords.json'));
     if (targetBlob && targetBlob.url) {
-      const resp = await fetch(`${targetBlob.url}?t=${Date.now()}`, {
+      const cacheBustUrl = `${targetBlob.url}?t=${Date.now()}_${Math.random()}`;
+      const resp = await fetch(cacheBustUrl, {
         cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache, no-store' }
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
       });
       if (resp.ok) {
         const data = await resp.json();
