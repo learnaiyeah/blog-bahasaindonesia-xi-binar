@@ -238,41 +238,67 @@ header.app-header .meta-tag {
   header.app-header {
     width: calc(100% - 1rem);
     margin: 0.4rem auto 0.85rem;
-    padding: 0.45rem 0.65rem;
-    border-radius: 24px;
+    padding: 0.35rem 0.65rem;
+    border-radius: 9999px;
   }
   .header-inner {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: space-between;
-    gap: 0.4rem;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .brand-title {
+    padding-left: 0;
+    flex-shrink: 0;
   }
   .brand-logo {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
   }
-  .brand-school {
-    font-size: 0.85rem;
-  }
-  .brand-sub {
-    font-size: 0.65rem;
+  /* Pada HP/layar kecil, sembunyikan teks judul sekolah/brand agar hanya ikon logo yang tampil */
+  .brand-title .brand-text {
+    display: none;
   }
   .header-actions {
-    flex-wrap: wrap;
-    gap: 0.3rem;
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+    align-items: center;
     justify-content: flex-end;
   }
-  header.app-header .btn {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-    min-height: 32px;
+  /* Sembunyikan teks label tombol pada HP sehingga hanya ikon yang tampil */
+  header.app-header .btn span {
+    display: none !important;
   }
+  /* Tombol aksi diubah menjadi tombol ikon bulat kompak */
+  header.app-header .btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+  }
+  header.app-header .btn svg {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+  }
+  /* Sembunyikan badge peran teks panjang di HP agar Dynamic Island tetap 1 baris ramping */
   #badge-role {
-    font-size: 0.65rem;
+    display: none !important;
+  }
+  header.app-header .meta-tag {
+    font-size: 0.7rem;
     padding: 0.2rem 0.5rem;
-    max-width: 120px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 480px) {
+  header.app-header .meta-tag {
+    display: none;
   }
 }
 
