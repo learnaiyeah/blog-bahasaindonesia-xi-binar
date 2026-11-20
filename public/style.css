@@ -424,6 +424,18 @@ footer.app-footer {
   object-fit: contain;
 }
 
+.footer-dev-credit {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  opacity: 0.9;
+  margin-top: -0.2rem;
+}
+
+.footer-dev-credit strong {
+  color: var(--primary);
+  font-weight: 600;
+}
+
 /* ==========================================================================
    Typography & Badges
    ========================================================================== */
