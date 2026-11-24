@@ -338,14 +338,11 @@ header.app-header .meta-tag {
   .brand-sub {
     display: none;
   }
-  /* Ringkas badge peran jika ada */
+  /* Badge peran ringkas */
   header.app-header #badge-role {
-    max-width: 135px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.65rem;
     white-space: nowrap;
-    font-size: 0.72rem;
-    padding: 0.25rem 0.6rem;
   }
 }
 

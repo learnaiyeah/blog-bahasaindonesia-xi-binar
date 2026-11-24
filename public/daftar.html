@@ -606,7 +606,7 @@
 
         if (currentRole === 'guru') {
           badgeRole.className = 'badge badge-guru';
-          badgeRole.textContent = 'Ibu Ulfa (Guru Pengampu)';
+          badgeRole.textContent = 'Ibu Ulfa Hayati';
           if (btnKelolaBab) btnKelolaBab.style.display = 'inline-flex';
           if (btnBackupData) btnBackupData.style.display = 'inline-flex';
           if (btnResetData) btnResetData.style.display = 'inline-flex';
@@ -2003,7 +2003,7 @@
       if (formUbahPassword) formUbahPassword.reset();
 
       if (modalUbahPasswordSubtitle) {
-        const peranNama = currentRole === 'guru' ? 'Ibu Ulfa (Guru Pengampu)' : 'Pengawas Sekolah';
+        const peranNama = currentRole === 'guru' ? 'Ibu Ulfa Hayati' : 'Pengawas Sekolah';
         modalUbahPasswordSubtitle.textContent = `Perbarui kata sandi masuk untuk ${peranNama}`;
       }
 
