@@ -88,12 +88,31 @@ body {
 }
 
 /* ==========================================================================
-   Dynamic Island Floating Header (Apple-inspired aesthetic)
+   Dynamic Island Floating Header (Apple-inspired aesthetic & View Transitions)
    ========================================================================== */
+
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(dynamic-island),
+::view-transition-new(dynamic-island) {
+  animation-duration: 0.32s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: clip;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.22s;
+}
+
 header.app-header {
   position: sticky;
   top: 0.75rem;
   z-index: 100;
+  view-transition-name: dynamic-island;
+  animation: island-spring-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
   width: -moz-fit-content;
   width: fit-content;
   max-width: min(1180px, calc(100% - 1.5rem));
@@ -201,6 +220,16 @@ header.app-header:hover {
 }
 
 /* Dynamic Island buttons */
+header.app-header .btn {
+  animation: island-action-pop 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+header.app-header .btn:nth-of-type(1) { animation-delay: 0.02s; }
+header.app-header .btn:nth-of-type(2) { animation-delay: 0.05s; }
+header.app-header .btn:nth-of-type(3) { animation-delay: 0.08s; }
+header.app-header .btn:nth-of-type(4) { animation-delay: 0.11s; }
+header.app-header .btn:nth-of-type(5) { animation-delay: 0.14s; }
+
 header.app-header .btn-secondary {
   background: rgba(255, 255, 255, 0.1);
   color: #f1f5f9;
@@ -347,6 +376,41 @@ header.app-header .meta-tag {
 @media (max-width: 480px) {
   header.app-header .meta-tag {
     display: none;
+  }
+}
+
+/* Dynamic Island Keyframe Animations & Accessibility */
+@keyframes island-spring-in {
+  0% {
+    opacity: 0.88;
+    transform: translateY(-6px) scale(0.96);
+  }
+  65% {
+    transform: translateY(1px) scale(1.006);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes island-action-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  header.app-header,
+  header.app-header .btn,
+  ::view-transition-group(*) {
+    animation: none !important;
+    transition: none !important;
   }
 }
 
