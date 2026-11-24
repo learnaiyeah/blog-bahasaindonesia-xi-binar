@@ -593,6 +593,66 @@
       tabBtnGrading.addEventListener('click', () => switchModalTab('grading'));
     }
 
+    // Transisi Buka & Tutup Modal Gaya iOS / Apple App Launch Fluid Spring
+    function openModalWithIosTransition(modalEl, triggerBtn) {
+      if (!modalEl) return;
+      const modalContent = modalEl.querySelector('.modal-content');
+      modalEl.classList.remove('modal-backdrop-closing');
+      modalEl.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+
+      if (modalContent) {
+        modalContent.classList.remove('modal-closing');
+        modalContent.classList.remove('animate-ios-open');
+
+        if (triggerBtn && typeof triggerBtn.getBoundingClientRect === 'function') {
+          const btnRect = triggerBtn.getBoundingClientRect();
+          const contentRect = modalContent.getBoundingClientRect();
+          const originX = (btnRect.left + btnRect.width / 2) - contentRect.left;
+          const originY = (btnRect.top + btnRect.height / 2) - contentRect.top;
+          modalContent.style.transformOrigin = `${originX}px ${originY}px`;
+        } else {
+          modalContent.style.transformOrigin = 'center top';
+        }
+
+        void modalContent.offsetWidth; // Force reflow
+        modalContent.classList.add('animate-ios-open');
+      }
+    }
+
+    function closeModalWithIosTransition(modalEl, onClosedCallback) {
+      if (!modalEl || modalEl.style.display !== 'flex') {
+        if (onClosedCallback) onClosedCallback();
+        return;
+      }
+      const modalContent = modalEl.querySelector('.modal-content');
+      modalEl.classList.add('modal-backdrop-closing');
+
+      if (modalContent) {
+        modalContent.classList.remove('animate-ios-open');
+        modalContent.classList.add('modal-closing');
+
+        let isFinished = false;
+        const finish = () => {
+          if (isFinished) return;
+          isFinished = true;
+          modalEl.style.display = 'none';
+          modalEl.classList.remove('modal-backdrop-closing');
+          modalContent.classList.remove('modal-closing');
+          document.body.style.overflow = '';
+          if (onClosedCallback) onClosedCallback();
+        };
+
+        modalContent.addEventListener('animationend', finish, { once: true });
+        setTimeout(finish, 260); // Safety fallback
+      } else {
+        modalEl.style.display = 'none';
+        modalEl.classList.remove('modal-backdrop-closing');
+        document.body.style.overflow = '';
+        if (onClosedCallback) onClosedCallback();
+      }
+    }
+
     // 1. Periksa sesi login
     async function checkSession() {
       try {
@@ -897,11 +957,11 @@
           tr.appendChild(tdAksi);
         }
 
-        tr.addEventListener('click', () => openPreviewModal(item));
+        tr.addEventListener('click', (e) => openPreviewModal(item, e.currentTarget));
         tr.addEventListener('keydown', (e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            openPreviewModal(item);
+            openPreviewModal(item, e.currentTarget);
           }
         });
 
@@ -1013,7 +1073,7 @@
           btnOpenCard.type = 'button';
           btnOpenCard.className = 'btn btn-primary mtc-btn-open';
           btnOpenCard.textContent = (currentRole === 'guru') ? 'Periksa & Nilai' : 'Buka Naskah';
-          btnOpenCard.addEventListener('click', () => openPreviewModal(item));
+          btnOpenCard.addEventListener('click', (e) => openPreviewModal(item, e.currentTarget));
           actionsDiv.appendChild(btnOpenCard);
 
           if (currentRole === 'guru') {
@@ -1042,7 +1102,7 @@
     searchNama.addEventListener('input', renderTable);
 
     // 5. Penanganan Panel Pratinjau & Detail
-    function openPreviewModal(groupItem) {
+    function openPreviewModal(groupItem, triggerEl) {
       selectedGroup = groupItem;
       const modalHeaderActions = document.getElementById('modal-header-actions');
       if (modalHeaderActions) {
@@ -1065,8 +1125,7 @@
       setupVersionHistory(groupItem);
       hideModalAlert();
       switchModalTab('viewer');
-      previewModal.style.display = 'flex';
-      document.body.style.overflow = 'hidden';
+      openModalWithIosTransition(previewModal, triggerEl);
     }
 
     // Menata daftar riwayat versi tugas
@@ -1663,12 +1722,12 @@
     }
 
     function closePreviewModal() {
-      previewModal.style.display = 'none';
-      previewFrame.src = 'about:blank';
-      if (docxContainer) docxContainer.innerHTML = '';
-      document.body.style.overflow = '';
-      selectedGroup = null;
-      activeVersion = null;
+      closeModalWithIosTransition(previewModal, () => {
+        previewFrame.src = 'about:blank';
+        if (docxContainer) docxContainer.innerHTML = '';
+        selectedGroup = null;
+        activeVersion = null;
+      });
     }
 
     btnCloseModal.addEventListener('click', closePreviewModal);
@@ -1842,7 +1901,7 @@
       return row;
     }
 
-    function openKelolaBabModal() {
+    function openKelolaBabModal(e) {
       if (!modalKelolaBab) return;
       hideKelolaBabAlert();
       babItemsContainer.innerHTML = '';
@@ -1856,15 +1915,15 @@
       });
       updateBabBadges();
 
-      modalKelolaBab.style.display = 'flex';
-      document.body.style.overflow = 'hidden';
+      const triggerBtn = (e && e.currentTarget) ? e.currentTarget : btnKelolaBab;
+      openModalWithIosTransition(modalKelolaBab, triggerBtn);
     }
 
     function closeKelolaBabModal() {
       if (!modalKelolaBab) return;
-      modalKelolaBab.style.display = 'none';
-      document.body.style.overflow = '';
-      hideKelolaBabAlert();
+      closeModalWithIosTransition(modalKelolaBab, () => {
+        hideKelolaBabAlert();
+      });
     }
 
     if (btnKelolaBab) {
@@ -1997,7 +2056,7 @@
       alertUbahPassword.style.display = 'none';
     }
 
-    function openUbahPasswordModal() {
+    function openUbahPasswordModal(e) {
       if (!modalUbahPassword) return;
       hideUbahPasswordAlert();
       if (formUbahPassword) formUbahPassword.reset();
@@ -2007,20 +2066,20 @@
         modalUbahPasswordSubtitle.textContent = `Perbarui kata sandi masuk untuk ${peranNama}`;
       }
 
-      modalUbahPassword.style.display = 'flex';
-      document.body.style.overflow = 'hidden';
+      const triggerBtn = (e && e.currentTarget) ? e.currentTarget : btnUbahPassword;
+      openModalWithIosTransition(modalUbahPassword, triggerBtn);
 
       setTimeout(() => {
         if (inputPasswordLama) inputPasswordLama.focus();
-      }, 50);
+      }, 100);
     }
 
     function closeUbahPasswordModal() {
       if (!modalUbahPassword) return;
-      modalUbahPassword.style.display = 'none';
-      document.body.style.overflow = '';
-      hideUbahPasswordAlert();
-      if (formUbahPassword) formUbahPassword.reset();
+      closeModalWithIosTransition(modalUbahPassword, () => {
+        hideUbahPasswordAlert();
+        if (formUbahPassword) formUbahPassword.reset();
+      });
     }
 
     if (btnUbahPassword) {
@@ -2134,23 +2193,23 @@
       alertResetData.style.display = 'none';
     }
 
-    function openResetDataModal() {
+    function openResetDataModal(e) {
       if (!modalResetData) return;
       hideResetDataAlert();
       if (formResetData) formResetData.reset();
-      modalResetData.style.display = 'flex';
-      document.body.style.overflow = 'hidden';
+      const triggerBtn = (e && e.currentTarget) ? e.currentTarget : btnResetData;
+      openModalWithIosTransition(modalResetData, triggerBtn);
       setTimeout(() => {
         if (inputResetKonfirmasi) inputResetKonfirmasi.focus();
-      }, 50);
+      }, 100);
     }
 
     function closeResetDataModal() {
       if (!modalResetData) return;
-      modalResetData.style.display = 'none';
-      document.body.style.overflow = '';
-      hideResetDataAlert();
-      if (formResetData) formResetData.reset();
+      closeModalWithIosTransition(modalResetData, () => {
+        hideResetDataAlert();
+        if (formResetData) formResetData.reset();
+      });
     }
 
     if (btnResetData) {
